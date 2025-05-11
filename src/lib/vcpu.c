@@ -1,0 +1,284 @@
+#include "include/vcpu.h"
+
+#include "include/arch.h"
+#include "include/debug.h"
+#include "include/vmcs.h"
+#include "include/vmcs_err.h"
+#include "include/vmxon.h"
+#include "include/setup_vmx.h"
+
+#include <linux/slab.h>
+
+extern void __vmexit_entry(void);
+
+/* use this to track vcpus */
+struct hv hv_global = {
+    .vcpu_ctx_arr = NULL,
+    .vcpu_ctx_arr_count = 0,
+    .vcpu_ctx_arr_lock = __MUTEX_INITIALIZER(hv_global.vcpu_ctx_arr_lock),
+};
+
+int hv_global_add_vcpu(struct vcpu_ctx *ctx)
+{
+    if (!ctx)
+        return -EINVAL;
+
+    mutex_lock(&hv_global.vcpu_ctx_arr_lock);
+
+    /* sanity check coz im paranoid, if u got this many cores tho then 
+       fuckin ell mate */
+    if (hv_global.vcpu_ctx_arr_count == ~0U) {
+        mutex_unlock(&hv_global.vcpu_ctx_arr_lock);
+        return -ENOENT;
+    }
+
+    u32 new_count = hv_global.vcpu_ctx_arr_count + 1;
+    struct vcpu_ctx **new_ptr = krealloc(
+        hv_global.vcpu_ctx_arr, 
+        sizeof(struct vcpu_ctx *) * new_count, GFP_KERNEL
+    );
+
+    if (!new_ptr) {
+        mutex_unlock(&hv_global.vcpu_ctx_arr_lock);
+        return -ENOMEM;
+    }
+
+    hv_global.vcpu_ctx_arr = new_ptr;
+    hv_global.vcpu_ctx_arr[hv_global.vcpu_ctx_arr_count] = ctx;
+    hv_global.vcpu_ctx_arr_count = new_count;
+
+    mutex_unlock(&hv_global.vcpu_ctx_arr_lock);
+    return 0;
+}
+
+int hv_global_remove_vcpu(struct vcpu_ctx *ctx)
+{
+    if (!ctx || hv_global.vcpu_ctx_arr_count == 0)
+        return -EINVAL;
+
+    mutex_lock(&hv_global.vcpu_ctx_arr_lock);
+
+    long index = -1;
+    for (u32 i = 0; i < hv_global.vcpu_ctx_arr_count; i++) {
+        if (hv_global.vcpu_ctx_arr[i] && 
+            hv_global.vcpu_ctx_arr[i]->cpu_id == ctx->cpu_id) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index < 0) {
+        mutex_unlock(&hv_global.vcpu_ctx_arr_lock);
+        return -ENOENT;
+    }
+
+    /* krealloc is pretty ass for removing elements coz
+       icl it can be really bad if an error happens, kinda
+       annoying to deal with, so we finna do it by just 
+       mapping a new array and copying the relevent 
+       elements into it */
+
+    struct vcpu_ctx **new_arr = NULL;
+
+    /* if the new count is 0, can just free and null the array */
+    u32 new_count = hv_global.vcpu_ctx_arr_count - 1;
+    if (new_count == 0) 
+        goto success;
+    
+    /* allocate new array of new count size */
+    new_arr = kzalloc(sizeof(struct vcpu_ctx *) * new_count, GFP_KERNEL);
+    if (!new_arr) {
+        mutex_unlock(&hv_global.vcpu_ctx_arr_lock);
+        return -ENOMEM;
+    }
+
+    /* copy relevant elements back to the new array */
+    for (u32 i = 0, j = 0; i < hv_global.vcpu_ctx_arr_count; i++) {
+        if (i == index)
+            continue;
+
+        new_arr[j++] = hv_global.vcpu_ctx_arr[i];
+    }
+
+success:
+    kfree(hv_global.vcpu_ctx_arr);
+    hv_global.vcpu_ctx_arr = new_arr;
+    hv_global.vcpu_ctx_arr_count = new_count;
+
+    mutex_unlock(&hv_global.vcpu_ctx_arr_lock);
+    return 0;
+}
+
+bool hv_global_vcpu_added(u32 cpu_id)
+{
+    mutex_lock(&hv_global.vcpu_ctx_arr_lock);
+
+    for (u32 i = 0; i < hv_global.vcpu_ctx_arr_count; i++) {
+        if (hv_global.vcpu_ctx_arr[i] && 
+            hv_global.vcpu_ctx_arr[i]->cpu_id == cpu_id) {
+
+            mutex_unlock(&hv_global.vcpu_ctx_arr_lock);
+            return true;
+        }
+    }
+
+    mutex_unlock(&hv_global.vcpu_ctx_arr_lock);
+    return false;
+}
+
+struct vcpu_ctx *alloc_vcpu(u32 cpu_id)
+{
+    struct vcpu_ctx *ctx = kzalloc(sizeof(struct vcpu_ctx), GFP_KERNEL);
+    if (!ctx) {
+
+        HV_LOG(KERN_ERR, "couldnt map vcpu structure, core: %u", cpu_id); 
+        
+        return ERR_PTR(-ENOMEM);
+    }
+
+    void *ptr_err = NULL;
+
+    struct vmxon_region *vmxon_region = alloc_vmxon_region();
+    if (IS_ERR(vmxon_region)) {
+        HV_LOG(KERN_ERR, "couldnt map vmxon structure, core: %u", cpu_id);
+        ptr_err = vmxon_region;
+        goto alloc_vmxon_region_failed;
+    }
+
+    struct vmcs *vmcs = alloc_vmcs();
+    if (IS_ERR(vmcs)) {
+        HV_LOG(KERN_ERR, "couldnt map vmcs structure, core: %u", cpu_id);
+        ptr_err = vmcs;
+        goto alloc_vmcs_failed;
+    }
+
+    ctx->vmxon.vmxon_region = vmxon_region;
+    ctx->vmxon.phys = __pa(vmxon_region);
+    ctx->vmcs = vmcs;
+    ctx->cpu_id = cpu_id;
+
+    return ctx;
+
+alloc_vmcs_failed:
+    free_vmxon_region(vmxon_region);
+
+alloc_vmxon_region_failed:
+    kfree(ctx);
+    return ptr_err;
+}
+
+void free_vcpu(struct vcpu_ctx *vcpu)
+{
+    if (!vcpu)
+        return;
+
+    if (vcpu->vmcs) 
+        free_vmcs(vcpu->vmcs);
+
+    if (vcpu->vmxon.vmxon_region)
+        free_vmxon_region(vcpu->vmxon.vmxon_region);
+
+    vcpu = NULL;
+}
+
+struct vcpu_ctx *__virtualise_core(
+    u32 cpu_id,  u64 guest_rip, u64 guest_rsp, u64 guest_rflags)
+{
+    if (hv_global_vcpu_added(cpu_id)) {
+        HV_LOG(KERN_ERR, "vcpu already added, core: %u", cpu_id); 
+        return ERR_PTR(-EALREADY);
+    }
+
+    int ret = setup_vmx();
+    if (ret < 0) {
+        HV_LOG(KERN_ERR, "couldnt setup vmxe, core: %u", cpu_id);
+        return ERR_PTR(ret);
+    }
+
+    struct vcpu_ctx *ctx = alloc_vcpu(cpu_id);
+    if (IS_ERR(ctx)) {
+        HV_LOG(KERN_ERR, "couldnt allocate vcpu, core: %u", cpu_id);
+        return ctx;
+    }
+    
+    void *ptr_err = NULL;
+
+    ret = hv_global_add_vcpu(ctx);
+    if (ret < 0) {
+        HV_LOG(KERN_DEBUG, "failed to add vcpu to arr, core: %u", cpu_id);
+        ptr_err = ERR_PTR(ret);
+        goto vcpu_arr_add_failed;
+    }
+
+    if (!__vmxon(ctx->vmxon.phys)) {
+        HV_LOG(KERN_ERR, "couldnt vmxon, core: %u", cpu_id);
+        ptr_err = ERR_PTR(-EFAULT);
+        goto vmxon_failed;
+    }
+
+    HV_LOG(KERN_DEBUG, "vmxon successful, core: %u", cpu_id);
+
+    if (!__vmclear(ctx->vmcs->vmcs_region_phys) || 
+        !__vmptrld(ctx->vmcs->vmcs_region_phys)) {
+
+        HV_LOG(KERN_ERR, "couldnt vmptrld, core: %u", cpu_id);
+        ptr_err = ERR_PTR(-EFAULT);
+        goto vmptrld_failed;
+    }
+
+    HV_LOG(KERN_DEBUG, "vmptrld successful, core: %u", cpu_id);
+
+    if (!setup_vmcs_ctls(ctx->vmcs)) { 
+        HV_LOG(KERN_ERR, "setup vmcs ctls failed, core %u", cpu_id);
+        goto setup_vmcs_failed;
+    }
+
+    HV_LOG(KERN_DEBUG, "setup vmcs ctls on core %u", cpu_id);
+
+    if (!setup_vmcs_host_regs(ctx, (u64)__vmexit_entry)) {
+        HV_LOG(KERN_ERR, "setup vmcs host regs failed, core %u", cpu_id);
+        goto setup_vmcs_failed;
+    }
+
+    HV_LOG(KERN_DEBUG, "setup vmcs host regs on core %u", cpu_id);
+
+    if (!setup_vmcs_guest_regs(guest_rip, guest_rsp, guest_rflags)) {
+        HV_LOG(KERN_ERR, "setup vmcs guest regs failed, core %u", cpu_id);
+        goto setup_vmcs_failed;
+    }
+
+    HV_LOG(KERN_DEBUG, "setup guest regs on core %u", cpu_id);
+
+    ctx->virtualised = true;
+    HV_LOG(KERN_DEBUG, "vmlaunching on core %u", cpu_id);
+    if (!__vmlaunch()) {
+        ctx->virtualised = false;
+        HV_LOG(KERN_ERR, "failed to vmlaunch, core: %u", cpu_id);
+        goto vmlaunch_failed;
+    }
+
+    return ctx;
+
+vmlaunch_failed:
+setup_vmcs_failed:
+    ptr_err = ERR_PTR(-EFAULT);
+    HV_LOG(KERN_ERR, "core: %u, vmcs err %s", cpu_id, 
+               vmcs_get_err(vmcs_get_errcode()));
+
+    __vmclear(ctx->vmcs->vmcs_region_phys);
+
+vmptrld_failed:
+    __vmxoff();
+
+vmxon_failed:
+    /* if we cant remove the ctx from the array, icl
+       just straight up keep the vcpu in the array atp */
+    if (hv_global_remove_vcpu(ctx) < 0) {
+        HV_LOG(KERN_ERR, "couldnt remove vcpu from arr, core: %u", cpu_id);
+        return ptr_err;
+    }
+
+vcpu_arr_add_failed:
+    free_vcpu(ctx);
+    return ptr_err;
+}
