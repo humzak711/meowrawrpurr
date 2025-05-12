@@ -2,6 +2,7 @@
 #include "include/arch.h"
 #include "include/debug.h"
 #include "include/vmcs_encoding.h"
+#include "include/vmcs_err.h"
 
 struct vmexit_handler vmexit_dispatch_table[] = {
 
@@ -21,6 +22,11 @@ bool vmexit_dispatcher(struct vcpu_ctx *ctx, struct regs *guest_regs)
 
     if (reason.fields.vmentry_failure != 0) {
         HV_LOG(KERN_ERR, "vmentry failed, core %u", ctx->cpu_id);
+
+        char *reason = vmcs_get_err(vmcs_get_errcode());
+        if (reason != NULL) 
+            HV_LOG(KERN_ERR, "vmentry err %s, core %u", reason, ctx->cpu_id);
+
         return false;
     }   
 

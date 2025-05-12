@@ -110,21 +110,22 @@ success:
     return 0;
 }
 
-bool hv_global_vcpu_added(u32 cpu_id)
+struct vcpu_ctx *hv_global_get_vcpu(u32 cpu_id)
 {
     mutex_lock(&hv_global.vcpu_ctx_arr_lock);
 
     for (u32 i = 0; i < hv_global.vcpu_ctx_arr_count; i++) {
-        if (hv_global.vcpu_ctx_arr[i] && 
-            hv_global.vcpu_ctx_arr[i]->cpu_id == cpu_id) {
 
+        struct vcpu_ctx *ctx = hv_global.vcpu_ctx_arr[i];
+
+        if (ctx && ctx->cpu_id == cpu_id) {
             mutex_unlock(&hv_global.vcpu_ctx_arr_lock);
-            return true;
+            return ctx;
         }
     }
 
     mutex_unlock(&hv_global.vcpu_ctx_arr_lock);
-    return false;
+    return NULL;
 }
 
 struct vcpu_ctx *alloc_vcpu(u32 cpu_id)
@@ -185,25 +186,26 @@ void free_vcpu(struct vcpu_ctx *vcpu)
 struct vcpu_ctx *__virtualise_core(
     u32 cpu_id,  u64 guest_rip, u64 guest_rsp, u64 guest_rflags)
 {
+    void *ptr_err = NULL;
+    int ret = 0;
 
     /* if the vcpu is already added, can just get to 
        setting up fields its all gud, we can reuse this mem */
-    if (hv_global_vcpu_added(cpu_id)) 
+    struct vcpu_ctx *ctx = hv_global_get_vcpu(cpu_id);
+    if (ctx)  
         goto vmx;
 
-    int ret = setup_vmx();
+    ret = setup_vmx();
     if (ret < 0) {
         HV_LOG(KERN_ERR, "couldnt setup vmxe, core: %u", cpu_id);
         return ERR_PTR(ret);
     }
 
-    struct vcpu_ctx *ctx = alloc_vcpu(cpu_id);
+    ctx = alloc_vcpu(cpu_id);
     if (IS_ERR(ctx)) {
         HV_LOG(KERN_ERR, "couldnt allocate vcpu, core: %u", cpu_id);
         return ctx;
     }
-    
-    void *ptr_err = NULL;
 
     ret = hv_global_add_vcpu(ctx);
     if (ret < 0) {
@@ -265,8 +267,10 @@ vmx:
 vmlaunch_failed:
 setup_vmcs_failed:
     ptr_err = ERR_PTR(-EFAULT);
-    HV_LOG(KERN_ERR, "core: %u, vmcs err %s", cpu_id, 
-               vmcs_get_err(vmcs_get_errcode()));
+    
+    char *reason = vmcs_get_err(vmcs_get_errcode());
+    if (reason != NULL)
+        HV_LOG(KERN_ERR, "core: %u, vmcs err %s", cpu_id, reason);
 
     __vmclear(ctx->vmcs->vmcs_region_phys);
 
@@ -294,21 +298,15 @@ vcpu_arr_add_failed:
 void __devirtualise_core(struct vcpu_ctx *ctx)
 {
     if (ctx->virtualised) {
-        __vmxoff();
+        __vmxoff(); //if this fails, we are fucked anyway lol
         ctx->virtualised = false;
     }
 }
 
-u64 __guest_rip(void)
+void __setup_vcpu_exit(struct vcpu_ctx *ctx)
 {
-    u64 rip = 0;
-    __vmread(VMCS_GUEST_RIP, &rip);
-    return rip;
-}
-
-u64 __guest_rsp(void)
-{
-    u64 rsp = 0;
-    __vmread(VMCS_GUEST_RSP, &rsp);
-    return rsp;
+    /* these better not fail or were fucked */
+    __vmread(VMCS_GUEST_RIP, &ctx->exit_guest_rip);
+    __vmread(VMCS_GUEST_RSP, &ctx->exit_guest_rsp);
+    __vmread(VMCS_GUEST_CR3, &ctx->exit_guest_cr3);
 }

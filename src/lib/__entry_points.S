@@ -2,9 +2,7 @@
 
 .extern __virtualise_core
 .extern __devirtualise_core
-.extern __guest_rip
-.extern __guest_rsp
-
+.extern __setup_vcpu_exit
 .extern vmexit_dispatcher
 
 .globl __virtualise_core_entry
@@ -107,6 +105,33 @@ __vmexit_entry:
 
 /* todo: proper shutdown of the hv */
 .__vmxoff:
-    popall
+
+    /* vmxoff dis shi */
+    pushq %rdi
+    call __devirtualise_core
+    popq %rdi
+
+    /* setup the guests rip & rsp in vcpu ptr */
+    call __setup_vcpu_exit
+
+    popall // restore guests regs
+    movq (%rsp), %rsi // store the vcpu ctx into rsi
+
+    // restore guest rip into rax
+    movq (%rsi), %rax 
+
+    // restore the guests stack
+    movq 8(%rsi), %rsp 
+
+    // restore guests cr3
+    movq 16(%rsi), %rdi
+    movq %rdi, %cr3
+
+    // zero out rsi before handing back control 
+    xor %rsi, %rsi 
+
+    // hand back control to the guest
+    jmp *(%rax) 
+
     int3
 .size __vmexit_entry, . - __vmexit_entry

@@ -1,12 +1,17 @@
 #ifndef _VCPU_H_
 #define _VCPU_H_
 
+#include "arch.h"
 #include "vmxon.h"
 
 #include <linux/mutex.h>
 
 struct vcpu_ctx
 {
+    u64 exit_guest_rip;
+    u64 exit_guest_rsp;
+    u64 exit_guest_cr3;
+
     struct 
     {
         struct vmxon_region *vmxon_region;
@@ -18,7 +23,8 @@ struct vcpu_ctx
 
     void *stashed_data;
     bool virtualised;
-};
+} __pack;
+size_assert(struct vcpu_ctx, 61);
 
 #define vcpu_ctx_stash_data(vcpu_ctx, data) \
     (((vcpu_ctx)->stashed_data) = (data))
@@ -38,7 +44,7 @@ extern struct hv hv_global;
 
 int hv_global_add_vcpu(struct vcpu_ctx *ctx);
 int hv_global_remove_vcpu(struct vcpu_ctx *ctx);
-bool hv_global_vcpu_added(u32 cpu_id);
+struct vcpu_ctx *hv_global_get_vcpu(u32 cpu_id);
 
 struct vcpu_ctx *alloc_vcpu(u32 cpu_id);
 void free_vcpu(struct vcpu_ctx *vcpu);
@@ -48,7 +54,6 @@ struct vcpu_ctx *__virtualise_core(
 
 void __devirtualise_core(struct vcpu_ctx *ctx);
 
-u64 __guest_rip(void);
-u64 __guest_rsp(void);
+void __setup_vcpu_exit(struct vcpu_ctx *ctx);
 
 #endif
