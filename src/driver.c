@@ -26,7 +26,6 @@ static int __init driver_entry(void)
     bool virtualised = __virtualise_core_entry(this_cpu_id);
     if (virtualised) 
         HV_LOG(KERN_DEBUG, "core virtualised: %u", this_cpu_id);
-    
     else 
         HV_LOG(KERN_DEBUG, "failed to virtualise core: %u", this_cpu_id);
 

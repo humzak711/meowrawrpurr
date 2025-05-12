@@ -17,7 +17,7 @@ typedef enum
     hlt,
     shutdown,
     wait_for_sipi,
-} activity_states ;
+} activity_states;
 
 union vmcs_vmx_exception_bitmap_t
 {

@@ -385,10 +385,6 @@ bool setup_vmcs_guest_regs(u64 rip, u64 rsp, u64 rflags)
 
     ret &= __vmwrite(VMCS_GUEST_ACTIVITY_STATE, active);
     ret &= __vmwrite(VMCS_GUEST_VMCS_LINK_POINTER, ~0ULL);
-    ret &= __vmwrite(VMCS_GUEST_VMX_PREEMPTION_TIMER_VALUE, 0);
-    ret &= __vmwrite(VMCS_GUEST_INTERRUPT_STATUS, 0);
-    ret &= __vmwrite(VMCS_GUEST_INTERRUPTIBILITY_STATE, 0);
-    ret &= __vmwrite(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS, 0);
-
+   
     return ret;
 }

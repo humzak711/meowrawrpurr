@@ -3,6 +3,7 @@
 #include "include/arch.h"
 #include "include/debug.h"
 #include "include/vmcs.h"
+#include "include/vmcs_encoding.h"
 #include "include/vmcs_err.h"
 #include "include/vmxon.h"
 #include "include/setup_vmx.h"
@@ -184,10 +185,11 @@ void free_vcpu(struct vcpu_ctx *vcpu)
 struct vcpu_ctx *__virtualise_core(
     u32 cpu_id,  u64 guest_rip, u64 guest_rsp, u64 guest_rflags)
 {
-    if (hv_global_vcpu_added(cpu_id)) {
-        HV_LOG(KERN_ERR, "vcpu already added, core: %u", cpu_id); 
-        return ERR_PTR(-EALREADY);
-    }
+
+    /* if the vcpu is already added, can just get to 
+       setting up fields its all gud, we can reuse this mem */
+    if (hv_global_vcpu_added(cpu_id)) 
+        goto vmx;
 
     int ret = setup_vmx();
     if (ret < 0) {
@@ -210,6 +212,7 @@ struct vcpu_ctx *__virtualise_core(
         goto vcpu_arr_add_failed;
     }
 
+vmx:
     if (!__vmxon(ctx->vmxon.phys)) {
         HV_LOG(KERN_ERR, "couldnt vmxon, core: %u", cpu_id);
         ptr_err = ERR_PTR(-EFAULT);
@@ -272,7 +275,9 @@ vmptrld_failed:
 
 vmxon_failed:
     /* if we cant remove the ctx from the array, icl
-       just straight up keep the vcpu in the array atp */
+       just straight up keep the vcpu in the array 
+       so that memory can at least maybe get reused 
+       if we try virtualise it again */
     if (hv_global_remove_vcpu(ctx) < 0) {
         HV_LOG(KERN_ERR, "couldnt remove vcpu from arr, core: %u", cpu_id);
         return ptr_err;
@@ -281,4 +286,29 @@ vmxon_failed:
 vcpu_arr_add_failed:
     free_vcpu(ctx);
     return ptr_err;
+}
+
+/* keep its memory available for reusage, 
+   this way, we can also still use its stack
+   for clean shutdown */
+void __devirtualise_core(struct vcpu_ctx *ctx)
+{
+    if (ctx->virtualised) {
+        __vmxoff();
+        ctx->virtualised = false;
+    }
+}
+
+u64 __guest_rip(void)
+{
+    u64 rip = 0;
+    __vmread(VMCS_GUEST_RIP, &rip);
+    return rip;
+}
+
+u64 __guest_rsp(void)
+{
+    u64 rsp = 0;
+    __vmread(VMCS_GUEST_RSP, &rsp);
+    return rsp;
 }

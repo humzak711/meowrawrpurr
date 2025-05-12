@@ -46,4 +46,9 @@ void free_vcpu(struct vcpu_ctx *vcpu);
 struct vcpu_ctx *__virtualise_core(
     u32 cpu_id, u64 guest_rip, u64 guest_rsp, u64 guest_rflags);
 
+void __devirtualise_core(struct vcpu_ctx *ctx);
+
+u64 __guest_rip(void);
+u64 __guest_rsp(void);
+
 #endif
