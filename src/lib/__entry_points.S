@@ -106,13 +106,8 @@ __vmexit_entry:
 /* todo: proper shutdown of the hv */
 .__vmxoff:
 
-    /* vmxoff dis shi */
-    pushq %rdi
+    /* vmxoff dis shi and setup vcpu ctx */
     call __devirtualise_core
-    popq %rdi
-
-    /* setup the guests rip & rsp in vcpu ptr */
-    call __setup_vcpu_exit
 
     popall // restore guests regs
     movq (%rsp), %rsi // store the vcpu ctx into rsi

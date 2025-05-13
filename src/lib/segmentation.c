@@ -27,8 +27,8 @@ u64 get_segment_base(struct __descriptor_table gdtr, u16 __selector)
         return base;
 
     if (descriptor->bitfield.fields.available_for_system == 0 && 
-        (descriptor->bitfield.fields.descriptor_type == TSS_AVAILABLE ||
-         descriptor->bitfield.fields.descriptor_type == TSS_BUSY)) {
+        (descriptor->bitfield.fields.segment_type == TSS_AVAILABLE ||
+         descriptor->bitfield.fields.segment_type == TSS_BUSY)) {
 
         struct __segment_descriptor_64 *expanded_descriptor =
             (struct __segment_descriptor_64 *)descriptor;

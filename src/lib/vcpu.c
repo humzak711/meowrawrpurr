@@ -292,21 +292,23 @@ vcpu_arr_add_failed:
     return ptr_err;
 }
 
-/* keep its memory available for reusage, 
-   this way, we can also still use its stack
-   for clean shutdown */
-void __devirtualise_core(struct vcpu_ctx *ctx)
-{
-    if (ctx->virtualised) {
-        __vmxoff(); //if this fails, we are fucked anyway lol
-        ctx->virtualised = false;
-    }
-}
-
 void __setup_vcpu_exit(struct vcpu_ctx *ctx)
 {
     /* these better not fail or were fucked */
     __vmread(VMCS_GUEST_RIP, &ctx->exit_guest_rip);
     __vmread(VMCS_GUEST_RSP, &ctx->exit_guest_rsp);
     __vmread(VMCS_GUEST_CR3, &ctx->exit_guest_cr3);
+}
+
+/* keep its memory available for reusage, 
+   this way, we can also still use its stack
+   for clean shutdown */
+void __devirtualise_core(struct vcpu_ctx *ctx)
+{
+    if (!ctx->virtualised)
+        return;
+     
+    __setup_vcpu_exit(ctx);
+    __vmxoff(); //if this fails, we are fucked anyway lol
+    ctx->virtualised = false;
 }

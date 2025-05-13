@@ -21,11 +21,12 @@ bool vmexit_dispatcher(struct vcpu_ctx *ctx, struct regs *guest_regs)
     }
 
     if (reason.fields.vmentry_failure != 0) {
-        HV_LOG(KERN_ERR, "vmentry failed, core %u", ctx->cpu_id);
+        HV_LOG(KERN_ERR, "vmentry failed, core %u, errcode %d", 
+               ctx->cpu_id, reason.fields.basic_reason);
 
         char *reason = vmcs_get_err(vmcs_get_errcode());
         if (reason != NULL) 
-            HV_LOG(KERN_ERR, "vmentry err %s, core %u", reason, ctx->cpu_id);
+            HV_LOG(KERN_ERR, "vmcs errcode %s, core %u", reason, ctx->cpu_id);
 
         return false;
     }   

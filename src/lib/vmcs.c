@@ -258,8 +258,8 @@ bool setup_vmcs_host_regs(struct vcpu_ctx *ctx, u64 rip)
     ret &= __vmwrite(VMCS_HOST_IA32_SYSENTER_EIP, 
             __rdmsrl(IA32_SYSENTER_EIP));
 
-    ret &= __vmwrite(VMCS_HOST_IA32_PERF_GLOBAL_CTRL, 
-            __rdmsrl(IA32_PERF_GLOBAL_CTRL));
+    /*ret &= __vmwrite(VMCS_HOST_IA32_PERF_GLOBAL_CTRL, 
+            __rdmsrl(IA32_PERF_GLOBAL_CTRL));*/
 
     ret &= __vmwrite(VMCS_HOST_IA32_PAT, 
             __rdmsrl(IA32_PAT));
@@ -356,8 +356,8 @@ bool setup_vmcs_guest_regs(u64 rip, u64 rsp, u64 rflags)
     ret &= __vmwrite(VMCS_GUEST_IA32_SYSENTER_EIP, 
             __rdmsrl(IA32_SYSENTER_EIP));
 
-    ret &= __vmwrite(VMCS_GUEST_IA32_PERF_GLOBAL_CTRL, 
-            __rdmsrl(IA32_PERF_GLOBAL_CTRL));
+   /* ret &= __vmwrite(VMCS_GUEST_IA32_PERF_GLOBAL_CTRL, 
+            __rdmsrl(IA32_PERF_GLOBAL_CTRL));*/
     
     ret &= __vmwrite(VMCS_GUEST_IA32_PAT, 
             __rdmsrl(IA32_PAT));

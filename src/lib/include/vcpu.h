@@ -52,8 +52,7 @@ void free_vcpu(struct vcpu_ctx *vcpu);
 struct vcpu_ctx *__virtualise_core(
     u32 cpu_id, u64 guest_rip, u64 guest_rsp, u64 guest_rflags);
 
-void __devirtualise_core(struct vcpu_ctx *ctx);
-
 void __setup_vcpu_exit(struct vcpu_ctx *ctx);
+void __devirtualise_core(struct vcpu_ctx *ctx);
 
 #endif

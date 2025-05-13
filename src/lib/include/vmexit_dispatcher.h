@@ -101,6 +101,10 @@ typedef enum {
     EXIT_REASON_WRMSRLIST,
 } basic_vmexit_reason_t;
 
+#define VMENTRY_INVAL_GUEST_STATE 33
+#define VMENTRY_MSR_LOADING 34
+#define VMENTRY_MCE 41
+
 #define EPT_VIOLATION_DATA_READ (1UL << 0)
 #define EPT_VIOLATION_DATA_WRITE (1UL << 1)
 #define EPT_VIOLATION_INST_FETCH (1UL << 2)
