@@ -247,7 +247,7 @@ vmx:
 
     HV_LOG(KERN_DEBUG, "setup vmcs host regs on core %u", cpu_id);
 
-    if (!setup_vmcs_guest_regs(guest_rip, guest_rsp, guest_rflags)) {
+    if (!setup_vmcs_guest_regs(ctx, guest_rip, guest_rsp, guest_rflags)) {
         HV_LOG(KERN_ERR, "setup vmcs guest regs failed, core %u", cpu_id);
         goto virtualise_failed;
     }

@@ -67,6 +67,25 @@ struct vmcs *alloc_vmcs(void)
         vmcs->ctl_msr_cache.entry = IA32_VMX_TRUE_ENTRY_CTLS;
     }
 
+    vmcs->selectors_cache.cs = __read_cs();
+    vmcs->selectors_cache.ds = __read_ds();
+    vmcs->selectors_cache.ss = __read_ss();
+    vmcs->selectors_cache.es = __read_es();
+    vmcs->selectors_cache.fs = __read_fs();
+    vmcs->selectors_cache.gs = __read_gs();
+    vmcs->selectors_cache.tr = __str();
+    vmcs->selectors_cache.ldtr = __sldt();
+    vmcs->selectors_cache.gdtr = __sgdt();
+    vmcs->selectors_cache.idtr = __sidt();
+
+    vmcs->crx_cache.cr0 = __do_read_cr0();
+    vmcs->crx_cache.cr3 = __do_read_cr3();
+    vmcs->crx_cache.cr4 = __do_read_cr4();
+
+    vmcs->sysenter_cache.esp = __rdmsrl(IA32_SYSENTER_ESP);
+    vmcs->sysenter_cache.eip = __rdmsrl(IA32_SYSENTER_EIP);
+    vmcs->sysenter_cache.cs = __rdmsrl(IA32_SYSENTER_CS);
+
     return vmcs;
 
 /*
@@ -212,9 +231,9 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
     */
     ret &= __vmwrite(VMCS_CTRL_EXCEPTION_BITMAP, 0);
 
-    //ret &= __vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK, 0);
+    ret &= __vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK, 0);
     ret &= __vmwrite(VMCS_CTRL_CR0_READ_SHADOW, __do_read_cr0());
-    //ret &= __vmwrite(VMCS_CTRL_CR4_GUEST_HOST_MASK, 0);
+    ret &= __vmwrite(VMCS_CTRL_CR4_GUEST_HOST_MASK, 0);
     ret &= __vmwrite(VMCS_CTRL_CR4_READ_SHADOW, __do_read_cr4());
 
     return ret;
@@ -222,13 +241,13 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
 
 bool setup_vmcs_host_regs(struct vcpu_ctx *ctx, u64 rip)
 {
-    u16 es = __read_es();
-    u16 cs = __read_cs();
-    u16 ss = __read_ss();
-    u16 ds = __read_ds();
-    u16 fs = __read_fs();
-    u16 gs = __read_gs();
-    u16 tr = __str();
+    u16 es = ctx->vmcs->selectors_cache.es;
+    u16 cs = ctx->vmcs->selectors_cache.cs;
+    u16 ss = ctx->vmcs->selectors_cache.ss;
+    u16 ds = ctx->vmcs->selectors_cache.ds;
+    u16 fs = ctx->vmcs->selectors_cache.fs;
+    u16 gs = ctx->vmcs->selectors_cache.gs;
+    u16 tr = ctx->vmcs->selectors_cache.tr;
 
     int ret = 1;
 
@@ -240,8 +259,8 @@ bool setup_vmcs_host_regs(struct vcpu_ctx *ctx, u64 rip)
     ret &= __vmwrite(VMCS_HOST_GS_SELECTOR, gs & HOST_SELECTOR_MASK);
     ret &= __vmwrite(VMCS_HOST_TR_SELECTOR, tr & HOST_SELECTOR_MASK);
 
-    struct __descriptor_table gdtr = __sgdt();
-    struct __descriptor_table idtr = __sidt();
+    struct __descriptor_table gdtr = ctx->vmcs->selectors_cache.gdtr;
+    struct __descriptor_table idtr = ctx->vmcs->selectors_cache.idtr;
 
     ret &= __vmwrite(VMCS_HOST_TR_BASE, get_segment_base(gdtr, tr));
     ret &= __vmwrite(VMCS_HOST_FS_BASE, __rdmsrl(IA32_FS_BASE));
@@ -249,9 +268,9 @@ bool setup_vmcs_host_regs(struct vcpu_ctx *ctx, u64 rip)
     ret &= __vmwrite(VMCS_HOST_GDTR_BASE, gdtr.base);
     ret &= __vmwrite(VMCS_HOST_IDTR_BASE, idtr.base);
 
-    ret &= __vmwrite(VMCS_HOST_CR0, __do_read_cr0());
-    ret &= __vmwrite(VMCS_HOST_CR3, __do_read_cr3());
-    ret &= __vmwrite(VMCS_HOST_CR4, __do_read_cr4());
+    ret &= __vmwrite(VMCS_HOST_CR0, ctx->vmcs->crx_cache.cr0);
+    ret &= __vmwrite(VMCS_HOST_CR3, ctx->vmcs->crx_cache.cr3);
+    ret &= __vmwrite(VMCS_HOST_CR4, ctx->vmcs->crx_cache.cr4);
 
     /* move the vcpu into the top of the hosts stack mem,
        move rsp to top of the stack */
@@ -269,11 +288,13 @@ bool setup_vmcs_host_regs(struct vcpu_ctx *ctx, u64 rip)
     ret &= __vmwrite(VMCS_HOST_RIP, rip);
 
     ret &= __vmwrite(VMCS_HOST_IA32_SYSENTER_CS, 
-            __rdmsrl(IA32_SYSENTER_CS));
+            ctx->vmcs->sysenter_cache.cs);
+
     ret &= __vmwrite(VMCS_HOST_IA32_SYSENTER_ESP, 
-            __rdmsrl(IA32_SYSENTER_ESP));
+            ctx->vmcs->sysenter_cache.esp);
+
     ret &= __vmwrite(VMCS_HOST_IA32_SYSENTER_EIP, 
-            __rdmsrl(IA32_SYSENTER_EIP));
+            ctx->vmcs->sysenter_cache.eip);
 
     /*ret &= __vmwrite(VMCS_HOST_IA32_PERF_GLOBAL_CTRL, 
             __rdmsrl(IA32_PERF_GLOBAL_CTRL));*/
@@ -296,16 +317,16 @@ bool setup_vmcs_host_regs(struct vcpu_ctx *ctx, u64 rip)
     return ret;
 }
 
-bool setup_vmcs_guest_regs(u64 rip, u64 rsp, u64 rflags)
+bool setup_vmcs_guest_regs(struct vcpu_ctx *ctx, u64 rip, u64 rsp, u64 rflags)
 {
-    u16 es = __read_es();
-    u16 cs = __read_cs();
-    u16 ss = __read_ss();
-    u16 ds = __read_ds();
-    u16 fs = __read_fs();
-    u16 gs = __read_gs();
-    u16 ldtr = __sldt();
-    u16 tr = __str();
+    u16 es = ctx->vmcs->selectors_cache.es;
+    u16 cs = ctx->vmcs->selectors_cache.cs;
+    u16 ss = ctx->vmcs->selectors_cache.ss;
+    u16 ds = ctx->vmcs->selectors_cache.ds;
+    u16 fs = ctx->vmcs->selectors_cache.fs;
+    u16 gs = ctx->vmcs->selectors_cache.gs;
+    u16 ldtr = ctx->vmcs->selectors_cache.ldtr;
+    u16 tr = ctx->vmcs->selectors_cache.tr;
 
     int ret = 1;
 
@@ -327,8 +348,8 @@ bool setup_vmcs_guest_regs(u64 rip, u64 rsp, u64 rflags)
     ret &= __vmwrite(VMCS_GUEST_LDTR_ACCESS_RIGHTS, get_segment_ar(ldtr));
     ret &= __vmwrite(VMCS_GUEST_TR_ACCESS_RIGHTS, get_segment_ar(tr));
 
-    struct __descriptor_table gdtr = __sgdt();
-    struct __descriptor_table idtr = __sidt();
+    struct __descriptor_table gdtr = ctx->vmcs->selectors_cache.gdtr;
+    struct __descriptor_table idtr = ctx->vmcs->selectors_cache.idtr;
 
     ret &= __vmwrite(VMCS_GUEST_ES_BASE, get_segment_base(gdtr, es));
     ret &= __vmwrite(VMCS_GUEST_CS_BASE, get_segment_base(gdtr, cs));
@@ -352,9 +373,9 @@ bool setup_vmcs_guest_regs(u64 rip, u64 rsp, u64 rflags)
     ret &= __vmwrite(VMCS_GUEST_GDTR_LIMIT, gdtr.limit);
     ret &= __vmwrite(VMCS_GUEST_IDTR_LIMIT, idtr.limit);
 
-    ret &= __vmwrite(VMCS_GUEST_CR0, __do_read_cr0());
-    ret &= __vmwrite(VMCS_GUEST_CR3, __do_read_cr3());
-    ret &= __vmwrite(VMCS_GUEST_CR4, __do_read_cr4());
+    ret &= __vmwrite(VMCS_GUEST_CR0, ctx->vmcs->crx_cache.cr0);
+    ret &= __vmwrite(VMCS_GUEST_CR3, ctx->vmcs->crx_cache.cr3);
+    ret &= __vmwrite(VMCS_GUEST_CR4, ctx->vmcs->crx_cache.cr4);
 
     ret &= __vmwrite(VMCS_GUEST_DR7, __read_dr7());
     ret &= __vmwrite(VMCS_GUEST_RFLAGS, rflags);
@@ -367,11 +388,13 @@ bool setup_vmcs_guest_regs(u64 rip, u64 rsp, u64 rflags)
             __rdmsrl(IA32_DEBUG_CTL));
 
     ret &= __vmwrite(VMCS_GUEST_IA32_SYSENTER_CS,
-            __rdmsrl(IA32_SYSENTER_CS));
+            ctx->vmcs->sysenter_cache.cs);
+
     ret &= __vmwrite(VMCS_GUEST_IA32_SYSENTER_ESP, 
-            __rdmsrl(IA32_SYSENTER_ESP));
+            ctx->vmcs->sysenter_cache.esp);
+
     ret &= __vmwrite(VMCS_GUEST_IA32_SYSENTER_EIP, 
-            __rdmsrl(IA32_SYSENTER_EIP));
+            ctx->vmcs->sysenter_cache.eip);
 
    /* ret &= __vmwrite(VMCS_GUEST_IA32_PERF_GLOBAL_CTRL, 
             __rdmsrl(IA32_PERF_GLOBAL_CTRL));*/
@@ -401,9 +424,9 @@ bool setup_vmcs_guest_regs(u64 rip, u64 rsp, u64 rflags)
             __rdmsrl(IA32_PKRS));*/
 
     ret &= __vmwrite(VMCS_GUEST_ACTIVITY_STATE, active);
-    //ret &= __vmwrite(VMCS_GUEST_INTERRUPT_STATUS, 0);
+    ret &= __vmwrite(VMCS_GUEST_INTERRUPT_STATUS, 0);
     ret &= __vmwrite(VMCS_GUEST_VMCS_LINK_POINTER, ~0ULL);
-    //ret &= __vmwrite(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS, 0);
+    ret &= __vmwrite(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS, 0);
 
     return ret;
 }

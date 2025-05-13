@@ -7,6 +7,7 @@
 #define OFF 0
 
 #define LOGGING ON
+#define DEBUG_MODE ON
 
 #if LOGGING == ON
 

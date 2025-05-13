@@ -5,7 +5,7 @@
 #include "vcpu.h"
 
 #define VMCS_REGION_SIZE 4096
-#define HOST_STACK_SIZE 4096 * 8
+#define HOST_STACK_SIZE (4096 * 8)
 
 #define BITMAP_SIZE 4096
 
@@ -298,6 +298,34 @@ struct vmcs
         u32 exit;
         u32 entry;
     } ctl_msr_cache;
+
+    struct 
+    {
+        u16 cs;
+        u16 ds;
+        u16 ss;
+        u16 es;
+        u16 fs;
+        u16 gs;
+        u16 tr;
+        u16 ldtr;
+        struct __descriptor_table gdtr;
+        struct __descriptor_table idtr;
+    } selectors_cache;
+
+    struct 
+    {
+        u64 cr0;
+        u64 cr3;
+        u64 cr4;
+    } crx_cache;
+
+    struct 
+    {
+        u64 esp;
+        u64 eip;
+        u16 cs; 
+    } sysenter_cache;
 };
 
 struct vmcs *alloc_vmcs(void);
@@ -310,7 +338,9 @@ bool vmwrite_adjusted(u64 field, u32 msr, u32 ctl);
 
 bool setup_vmcs_ctls(struct vmcs *vmcs);
 bool setup_vmcs_host_regs(struct vcpu_ctx *ctx, u64 rip);
-bool setup_vmcs_guest_regs(u64 rip, u64 rsp, u64 guest_rflags);
+bool setup_vmcs_guest_regs(struct vcpu_ctx *ctx, u64 rip, 
+                           u64 rsp, u64 rflags);
+
 bool do_vmcs_checks(struct vcpu_ctx *ctx);
 
 #endif
