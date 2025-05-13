@@ -48,7 +48,7 @@ u32 get_segment_ar(u16 __selector)
     union access_rights_t ar = {0};
 
     if ((selector.fields.ti == 0 && selector.fields.index == 0)) {
-	ar.val = 0;
+	    ar.val = 0;
         ar.fields.segment_unusable = 1;
         return ar.val;
     }
@@ -58,7 +58,6 @@ u32 get_segment_ar(u16 __selector)
     ar.fields.segment_unusable = 0;
     ar.fields.reserved0 = 0;
     ar.fields.reserved1 = 0;
-    ar.fields.reserved2 = 0;
 
     return ar.val;
 }

@@ -25,16 +25,16 @@ bool setup_ia32_feature_ctrl(void)
 void clear_cr0_conflicts(void)
 {
     u64 cr0 = __do_read_cr0();
-    cr0 |= __rdmsrl(IA32_VMX_CR0_FIXED0);
     cr0 &= __rdmsrl(IA32_VMX_CR0_FIXED1);
+    cr0 |= __rdmsrl(IA32_VMX_CR0_FIXED0);
     __do_write_cr0(cr0);
 }
 
 void clear_cr4_conflicts(void)
 {
     u64 cr4 = __do_read_cr4();
-    cr4 |= __rdmsrl(IA32_VMX_CR4_FIXED0);
     cr4 &= __rdmsrl(IA32_VMX_CR4_FIXED1);
+    cr4 |= __rdmsrl(IA32_VMX_CR4_FIXED0);
     __do_write_cr4(cr4);
 }
 

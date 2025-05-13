@@ -235,37 +235,43 @@ vmx:
 
     if (!setup_vmcs_ctls(ctx->vmcs)) { 
         HV_LOG(KERN_ERR, "setup vmcs ctls failed, core %u", cpu_id);
-        goto setup_vmcs_failed;
+        goto virtualise_failed;
     }
 
     HV_LOG(KERN_DEBUG, "setup vmcs ctls on core %u", cpu_id);
 
     if (!setup_vmcs_host_regs(ctx, (u64)__vmexit_entry)) {
         HV_LOG(KERN_ERR, "setup vmcs host regs failed, core %u", cpu_id);
-        goto setup_vmcs_failed;
+        goto virtualise_failed;
     }
 
     HV_LOG(KERN_DEBUG, "setup vmcs host regs on core %u", cpu_id);
 
     if (!setup_vmcs_guest_regs(guest_rip, guest_rsp, guest_rflags)) {
         HV_LOG(KERN_ERR, "setup vmcs guest regs failed, core %u", cpu_id);
-        goto setup_vmcs_failed;
+        goto virtualise_failed;
     }
 
     HV_LOG(KERN_DEBUG, "setup guest regs on core %u", cpu_id);
+
+    if (!do_vmcs_checks(ctx)) {
+        HV_LOG(KERN_ERR, "vmcs checks failed on core %u", cpu_id);
+        goto virtualise_failed;
+    }
+
+    HV_LOG(KERN_DEBUG, "vmcs checks passed on core %u", cpu_id);
 
     ctx->virtualised = true;
     HV_LOG(KERN_DEBUG, "vmlaunching on core %u", cpu_id);
     if (!__vmlaunch()) {
         ctx->virtualised = false;
         HV_LOG(KERN_ERR, "failed to vmlaunch, core: %u", cpu_id);
-        goto vmlaunch_failed;
+        goto virtualise_failed;
     }
 
     return ctx;
 
-vmlaunch_failed:
-setup_vmcs_failed:
+virtualise_failed:
     ptr_err = ERR_PTR(-EFAULT);
     
     char *reason = vmcs_get_err(vmcs_get_errcode());
@@ -308,7 +314,11 @@ void __devirtualise_core(struct vcpu_ctx *ctx)
     if (!ctx->virtualised)
         return;
      
+    HV_LOG(KERN_DEBUG, "devirtualising core %u", ctx->cpu_id);
+
     __setup_vcpu_exit(ctx);
     __vmxoff(); //if this fails, we are fucked anyway lol
     ctx->virtualised = false;
+    
+    HV_LOG(KERN_DEBUG, "devirtualised core %u", ctx->cpu_id);
 }

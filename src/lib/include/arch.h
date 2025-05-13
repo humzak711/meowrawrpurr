@@ -23,11 +23,11 @@ union access_rights_t
         u32 p : 1;
         u32 reserved0 : 4;
         u32 avl : 1;
-        u32 reserved1 : 1;
+        u32 longmode : 1;
         u32 db : 1;
         u32 g : 1;
         u32 segment_unusable : 1;
-        u32 reserved2 : 15;
+        u32 reserved1 : 15;
     } fields;
 };
 

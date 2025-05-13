@@ -125,6 +125,10 @@ __vmexit_entry:
     // zero out rsi before handing back control 
     xor %rsi, %rsi 
 
+    /* #ud for debugging otherwise my shi crashes because 
+       this isnt setup properly */
+    vmresume 
+
     // hand back control to the guest
     jmp *(%rax) 
 

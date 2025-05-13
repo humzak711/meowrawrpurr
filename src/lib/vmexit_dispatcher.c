@@ -21,6 +21,7 @@ bool vmexit_dispatcher(struct vcpu_ctx *ctx, struct regs *guest_regs)
     }
 
     if (reason.fields.vmentry_failure != 0) {
+
         HV_LOG(KERN_ERR, "vmentry failed, core %u, errcode %d", 
                ctx->cpu_id, reason.fields.basic_reason);
 
