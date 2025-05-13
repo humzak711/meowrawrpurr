@@ -289,12 +289,23 @@ struct vmcs
         size_t io_bitmap_b_size;
         */
     } guest;
+
+    struct 
+    {
+        u32 pin;
+        u32 proc;
+        u32 proc2;
+        u32 exit;
+        u32 entry;
+    } ctl_msr_cache;
 };
 
 struct vmcs *alloc_vmcs(void);
 void free_vmcs(struct vmcs *vmcs);
 
 u32 adjust_ctl(u32 msr, u32 ctl);
+bool check_ctl(u32 msr, u32 ctl);
+
 bool vmwrite_adjusted(u64 field, u32 msr, u32 ctl);
 
 bool setup_vmcs_ctls(struct vmcs *vmcs);

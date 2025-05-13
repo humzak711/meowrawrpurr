@@ -51,6 +51,22 @@ struct vmcs *alloc_vmcs(void)
     vmcs->guest.io_bitmap_b_size = BITMAP_SIZE;
     */
 
+    union ia32_vmx_basic_t basic = {0};
+    basic.val = __rdmsrl(IA32_VMX_BASIC);
+
+    vmcs->ctl_msr_cache.pin = IA32_VMX_PINBASED_CTLS;
+    vmcs->ctl_msr_cache.proc = IA32_VMX_PROCBASED_CTLS;
+    vmcs->ctl_msr_cache.proc2 = IA32_VMX_PROCBASED_CTLS2;
+    vmcs->ctl_msr_cache.exit = IA32_VMX_EXIT_CTLS;
+    vmcs->ctl_msr_cache.entry = IA32_VMX_ENTRY_CTLS;
+
+    if (basic.fields.defaults_to_one_clear != 0) {
+        vmcs->ctl_msr_cache.pin = IA32_VMX_TRUE_PINBASED_CTLS;
+        vmcs->ctl_msr_cache.proc = IA32_VMX_TRUE_PROCBASED_CTLS;
+        vmcs->ctl_msr_cache.exit = IA32_VMX_TRUE_EXIT_CTLS;
+        vmcs->ctl_msr_cache.entry = IA32_VMX_TRUE_ENTRY_CTLS;
+    }
+
     return vmcs;
 
 /*
@@ -101,11 +117,20 @@ void free_vmcs(struct vmcs *vmcs)
 u32 adjust_ctl(u32 msr, u32 ctl)
 {
     u64 caps = __rdmsrl(msr);
-
-    ctl &= (caps >> 32); 
-    ctl |= (caps & 0xffffffff);
+ 
+    ctl |= (u32)(caps);
+    ctl &= (u32)(caps >> 32);
 
     return ctl;
+}
+
+bool check_ctl(u32 msr, u32 ctl)
+{
+    u64 cap = __rdmsrl(msr);
+
+    u32 low = (cap & 0xffffffff);
+    return (ctl & ~(cap >> 32)) == 0 &&
+           (ctl & low) == low;
 }
 
 bool vmwrite_adjusted(u64 field, u32 msr, u32 ctl)
@@ -120,27 +145,11 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
 {
     int ret = 1;
 
-    union ia32_vmx_basic_t basic = {0};
-    basic.val = __rdmsrl(IA32_VMX_BASIC);
-
-    u64 ia32_pin = IA32_VMX_PINBASED_CTLS;
-    u64 ia32_proc = IA32_VMX_PROCBASED_CTLS;
-    u64 ia32_proc2 = IA32_VMX_PROCBASED_CTLS2;
-    u64 ia32_exit = IA32_VMX_EXIT_CTLS;
-    u64 ia32_entry = IA32_VMX_ENTRY_CTLS;
-
-    if (basic.fields.defaults_to_one_clear != 0) {
-        ia32_pin = IA32_VMX_TRUE_PINBASED_CTLS;
-        ia32_proc = IA32_VMX_TRUE_PROCBASED_CTLS;
-        ia32_exit = IA32_VMX_TRUE_EXIT_CTLS;
-        ia32_entry = IA32_VMX_TRUE_ENTRY_CTLS;
-    }
-
     /* pinbased ctls */
 
     union vmcs_vmx_pinbased_ctls_t pinbased_ctls = {0};
     ret &= vmwrite_adjusted(VMCS_CTRL_PINBASED_CONTROLS, 
-           ia32_pin, pinbased_ctls.ctl);
+           vmcs->ctl_msr_cache.pin, pinbased_ctls.ctl);
 
     /* procbased ctls */
 
@@ -151,7 +160,7 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
     procbased_ctls.fields.activate_secondary_controls = 1;
         
     ret &= vmwrite_adjusted(VMCS_CTRL_PROCBASED_CTLS, 
-           ia32_proc, procbased_ctls.ctl);
+           vmcs->ctl_msr_cache.proc, procbased_ctls.ctl);
     
     /* secondary procbased ctls */
 
@@ -163,7 +172,7 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
     //procbased_ctls2.fields.conceal_vmx_from_pt = 1;
 
     ret &= vmwrite_adjusted(VMCS_CTRL_PROCBASED_CTLS2,
-           ia32_proc2, procbased_ctls2.ctl);
+           vmcs->ctl_msr_cache.proc2, procbased_ctls2.ctl);
 
     /* tertiary procbased ctls */
 
@@ -178,7 +187,7 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
     //exit_ctls.fields.conceal_vmx_from_pt = 1;
 
     ret &= vmwrite_adjusted(VMCS_CTRL_PRIMARY_VMEXIT_CONTROLS, 
-           ia32_exit, exit_ctls.ctl);
+           vmcs->ctl_msr_cache.exit, exit_ctls.ctl);
 
     /* secondary exit ctls */
 
@@ -191,7 +200,7 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
     entry_ctls.fields.load_debug_controls = 1;
 
     ret &= vmwrite_adjusted(VMCS_CTRL_VMENTRY_CONTROLS, 
-           ia32_entry, entry_ctls.ctl);
+           vmcs->ctl_msr_cache.entry, entry_ctls.ctl);
 
 
     /* other ctrls */
@@ -347,7 +356,7 @@ bool setup_vmcs_guest_regs(u64 rip, u64 rsp, u64 rflags)
     ret &= __vmwrite(VMCS_GUEST_CR3, __do_read_cr3());
     ret &= __vmwrite(VMCS_GUEST_CR4, __do_read_cr4());
 
-    ret &= __vmwrite(VMCS_GUEST_DR7, __read_dr7()) & 0xffffffff;
+    ret &= __vmwrite(VMCS_GUEST_DR7, __read_dr7());
     ret &= __vmwrite(VMCS_GUEST_RFLAGS, rflags);
 
     /* should be original guest rip/rsp to bluepill */
@@ -394,7 +403,7 @@ bool setup_vmcs_guest_regs(u64 rip, u64 rsp, u64 rflags)
     ret &= __vmwrite(VMCS_GUEST_ACTIVITY_STATE, active);
     //ret &= __vmwrite(VMCS_GUEST_INTERRUPT_STATUS, 0);
     ret &= __vmwrite(VMCS_GUEST_VMCS_LINK_POINTER, ~0ULL);
-    ret &= __vmwrite(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS, 0);
+    //ret &= __vmwrite(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS, 0);
 
     return ret;
 }
@@ -410,6 +419,25 @@ bool do_vmcs_checks(struct vcpu_ctx *ctx)
 
     ret &= cr0.fields.pg == 0 || cr0.fields.pe != 0;
     ret &= cr4.fields.cet == 0 || cr0.fields.wp != 0;
+    ret &= ((u64)ctx->vmcs->guest.msr_bitmap & 0xfff) == 0;
+
+    u32 pin = 0;
+    u32 proc = 0;
+    u32 proc2 = 0;
+    u32 exit = 0;
+    u32 entry = 0;
+
+    __vmread32(VMCS_CTRL_PINBASED_CONTROLS, &pin);
+    __vmread32(VMCS_CTRL_PROCBASED_CTLS, &proc);
+    __vmread32(VMCS_CTRL_PROCBASED_CTLS2, &proc2);
+    __vmread32(VMCS_CTRL_PRIMARY_VMEXIT_CONTROLS, &exit);
+    __vmread32(VMCS_CTRL_VMENTRY_CONTROLS, &entry);
+
+    ret &= check_ctl(ctx->vmcs->ctl_msr_cache.pin, pin);
+    ret &= check_ctl(ctx->vmcs->ctl_msr_cache.proc, proc);
+    ret &= check_ctl(ctx->vmcs->ctl_msr_cache.proc2, proc2);
+    ret &= check_ctl(ctx->vmcs->ctl_msr_cache.exit, exit);
+    ret &= check_ctl(ctx->vmcs->ctl_msr_cache.entry, entry);
 
     return ret;
 }
