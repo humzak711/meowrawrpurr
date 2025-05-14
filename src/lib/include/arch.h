@@ -60,11 +60,11 @@ struct __segment_descriptor_32
         {
             u32 base_mid : 8;
             u32 segment_type : 4;
-            u32 descriptor_type : 1;
+            u32 s : 1;
             u32 dpl : 2;
             u32 present : 1;
             u32 limit_high : 4;
-            u32 available_for_system : 1;
+            u32 avl : 1;
             u32 long_mode : 1;
             u32 db : 1;
             u32 granularity : 1;
@@ -89,7 +89,7 @@ struct __segment_descriptor_64
             u32 dpl : 2;
             u32 present : 1;
             u32 limit_high : 4;
-            u32 available_for_system : 1;
+            u32 avl : 1;
             u32 reserved1 : 1;
             u32 reserved2 : 1;
             u32 granularity : 1;

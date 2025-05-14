@@ -188,7 +188,7 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
     procbased_ctls2.fields.enable_rdtscp = 1;
     procbased_ctls2.fields.enable_invpcid = 1;
     procbased_ctls2.fields.enable_xsaves_xrstors = 1;
-    //procbased_ctls2.fields.conceal_vmx_from_pt = 1;
+    procbased_ctls2.fields.conceal_vmx_from_pt = 1;
 
     ret &= vmwrite_adjusted(VMCS_CTRL_PROCBASED_CTLS2,
            vmcs->ctl_msr_cache.proc2, procbased_ctls2.ctl);
@@ -203,7 +203,7 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
     exit_ctls.fields.host_address_space_size = 1;
     exit_ctls.fields.save_debug_controls = 1;
     exit_ctls.fields.acknowledge_interrupt_on_exit = 1;
-    //exit_ctls.fields.conceal_vmx_from_pt = 1;
+    exit_ctls.fields.conceal_vmx_from_pt = 1;
 
     ret &= vmwrite_adjusted(VMCS_CTRL_PRIMARY_VMEXIT_CONTROLS, 
            vmcs->ctl_msr_cache.exit, exit_ctls.ctl);
@@ -217,6 +217,7 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
 
     entry_ctls.fields.ia32e_mode_guest = 1;
     entry_ctls.fields.load_debug_controls = 1;
+    entry_ctls.fields.conceal_vmx_from_pt = 1;
 
     ret &= vmwrite_adjusted(VMCS_CTRL_VMENTRY_CONTROLS, 
            vmcs->ctl_msr_cache.entry, entry_ctls.ctl);
@@ -396,7 +397,7 @@ bool setup_vmcs_guest_regs(struct vcpu_ctx *ctx, u64 rip, u64 rsp, u64 rflags)
     ret &= __vmwrite(VMCS_GUEST_IA32_SYSENTER_EIP, 
             ctx->vmcs->sysenter_cache.eip);
 
-   /* ret &= __vmwrite(VMCS_GUEST_IA32_PERF_GLOBAL_CTRL, 
+    /*ret &= __vmwrite(VMCS_GUEST_IA32_PERF_GLOBAL_CTRL, 
             __rdmsrl(IA32_PERF_GLOBAL_CTRL));*/
     
     ret &= __vmwrite(VMCS_GUEST_IA32_PAT, 
@@ -440,7 +441,6 @@ bool do_vmcs_checks(struct vcpu_ctx *ctx)
 
     int ret = 1;
 
-    ret &= cr0.fields.pg == 0 || cr0.fields.pe != 0;
     ret &= cr4.fields.cet == 0 || cr0.fields.wp != 0;
     ret &= ((u64)ctx->vmcs->guest.msr_bitmap & 0xfff) == 0;
 

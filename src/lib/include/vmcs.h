@@ -221,7 +221,7 @@ union vmcs_vmx_entry_ctls_t
         u32 load_ia32_rtit_ctl : 1;
         u32 load_uinv : 1;
         u32 load_cet_state : 1;
-        u32 load_guest_ia32_lbr_ctl : 1;
+        u32 load_ia32_lbr_ctl : 1;
         u32 load_pkrs : 1;
         u32 reserved3 : 9;
     } fields;

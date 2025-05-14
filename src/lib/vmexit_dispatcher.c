@@ -22,8 +22,12 @@ bool vmexit_dispatcher(struct vcpu_ctx *ctx, struct regs *guest_regs)
 
     if (reason.fields.vmentry_failure != 0) {
 
-        HV_LOG(KERN_ERR, "vmentry failed, core %u, errcode %d", 
-               ctx->cpu_id, reason.fields.basic_reason);
+        u64 qualification = 0;
+        __vmread(VMCS_RO_EXIT_QUALIFICATION, &qualification);
+
+        HV_LOG(KERN_ERR, 
+            "vmentry failed, core %u, errcode %d, qualification %llu",  
+            ctx->cpu_id, reason.fields.basic_reason, qualification);
 
         char *reason = vmcs_get_err(vmcs_get_errcode());
         if (reason != NULL) 
@@ -32,6 +36,7 @@ bool vmexit_dispatcher(struct vcpu_ctx *ctx, struct regs *guest_regs)
         return false;
     }   
 
+    
     HV_LOG(KERN_DEBUG, "vmexit occured, reason: %u, core: %u",
            reason.fields.basic_reason, ctx->cpu_id);
 
