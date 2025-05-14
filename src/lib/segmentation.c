@@ -21,7 +21,7 @@ u64 get_segment_base(struct __descriptor_table gdtr, u16 __selector)
 
     u64 base = (high << 24) | (mid << 16) | low;
 
-    if (descriptor->bitfield.fields.s == 0 && 
+    if (descriptor->bitfield.fields.descriptor_type == 0 && 
         (descriptor->bitfield.fields.segment_type == TSS_AVAILABLE ||
          descriptor->bitfield.fields.segment_type == TSS_BUSY)) {
 

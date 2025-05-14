@@ -60,7 +60,7 @@ struct __segment_descriptor_32
         {
             u32 base_mid : 8;
             u32 segment_type : 4;
-            u32 s : 1;
+            u32 descriptor_type : 1;
             u32 dpl : 2;
             u32 present : 1;
             u32 limit_high : 4;
