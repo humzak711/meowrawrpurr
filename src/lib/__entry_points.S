@@ -101,6 +101,10 @@ __vmexit_entry:
     popall
     addq $8, %rsp 
     vmresume
+    
+    /* todo: vmresume error handling */
+
+    nop
     int3
 
 /* todo: proper shutdown of the hv */
@@ -128,9 +132,6 @@ __vmexit_entry:
     /* #ud for debugging otherwise my shi crashes because 
        this isnt setup properly */
     vmresume 
-
-    // hand back control to the guest
-    jmp *(%rax) 
 
     int3
 .size __vmexit_entry, . - __vmexit_entry

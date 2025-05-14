@@ -16,7 +16,20 @@ extern bool __virtualise_core_entry(u32 cpu_id);
 
 #include <linux/kthread.h>
 
-static int __meowmeow(void *purr)
+struct rawr
+{
+    struct hv *hv_global;
+    struct task_struct *init_thread;
+    struct mutex global_lock;
+};
+
+struct rawr rawr_global = {
+    .hv_global = &hv_global,
+    .init_thread = NULL,
+    .global_lock = __MUTEX_INITIALIZER(rawr_global.global_lock),
+};
+
+static void virtualise(void *rawr_global)
 {
     u32 this_cpu_id = smp_processor_id();
 
@@ -25,7 +38,11 @@ static int __meowmeow(void *purr)
         HV_LOG(KERN_DEBUG, "core virtualised: %u", this_cpu_id);
     else 
         HV_LOG(KERN_DEBUG, "failed to virtualise core: %u", this_cpu_id);
+}
 
+static int bluepill(void *rawr_global)
+{
+    on_each_cpu(virtualise, rawr_global, 1);
     return 0;
 }
 
@@ -33,27 +50,15 @@ static int __init driver_entry(void)
 {
     HV_LOG(KERN_DEBUG, "driver loaded");
 
-#if DEBUG_MODE == ON
+    rawr_global.init_thread = 
+        kthread_run(bluepill, &rawr_global, "meowmeow");
 
-    if (!kthread_run(__meowmeow, NULL, "meowmeow")) {
+    if (!rawr_global.init_thread) {
         HV_LOG(KERN_DEBUG, "failed to create thread");
         return -EFAULT;
     }
 
     HV_LOG(KERN_DEBUG, "thread created");
-
-#else
-
-    u32 this_cpu_id = smp_processor_id();
-
-    bool virtualised = __virtualise_core_entry(this_cpu_id);
-    if (virtualised) 
-        HV_LOG(KERN_DEBUG, "core virtualised: %u", this_cpu_id);
-    else 
-        HV_LOG(KERN_DEBUG, "failed to virtualise core: %u", this_cpu_id);
-
-#endif
-
     return 0;   
 }
 

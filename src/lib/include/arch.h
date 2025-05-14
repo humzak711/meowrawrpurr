@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/processor.h>
+#include "vmcs_encoding.h"
 
 #define __noinline __attribute__ ((__noinline__))
 #define __pack __attribute__ ((packed))
@@ -801,5 +802,10 @@ inline bool __lsl(u16 segment, u32 *outp);
 
 inline u64 __read_rflags(void);
 inline u64 __read_dr7(void);
+
+/* vmcs ops */
+
+bool guest_rip_add(u64 length);
+bool guest_rip_next(void);
 
 #endif

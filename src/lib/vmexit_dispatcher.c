@@ -1,11 +1,12 @@
 #include "include/vmexit_dispatcher.h"
+
+#include "vmexit_handlers.h"
 #include "include/arch.h"
 #include "include/debug.h"
-#include "include/vmcs_encoding.h"
 #include "include/vmcs_err.h"
 
 struct vmexit_handler vmexit_dispatch_table[] = {
-
+    {handle_cpuid, EXIT_REASON_CPUID},
 };
 
 /* if we return false, the vmexit entry point should 
@@ -35,15 +36,14 @@ bool vmexit_dispatcher(struct vcpu_ctx *ctx, struct regs *guest_regs)
 
         return false;
     }   
-
     
-    HV_LOG(KERN_DEBUG, "vmexit occured, reason: %u, core: %u",
-           reason.fields.basic_reason, ctx->cpu_id);
+    //HV_LOG(KERN_DEBUG, "vmexit occured, reason: %u, core: %u",
+      //      reason.fields.basic_reason, ctx->cpu_id);
 
     for (u32 i = 0; i < ARRAY_LEN(vmexit_dispatch_table); i++) {
         if (vmexit_dispatch_table[i].reason == reason.fields.basic_reason)
             return vmexit_dispatch_table[i].func(ctx, guest_regs);
     }
 
-    return true;
+    return guest_rip_next();
 }

@@ -281,13 +281,12 @@ struct vmcs
         char *msr_bitmap;
         size_t msr_bitmap_size;
 
-        /*
         char *io_bitmap_a;
         size_t io_bitmap_a_size;
 
         char *io_bitmap_b;
         size_t io_bitmap_b_size;
-        */
+        
     } guest;
 
     struct 

@@ -8,9 +8,12 @@
 
 struct vcpu_ctx
 {
-    u64 exit_guest_rip;
-    u64 exit_guest_rsp;
-    u64 exit_guest_cr3;
+    struct 
+    {   
+        u64 rip;
+        u64 rsp;
+        u64 cr3;
+    } exit_regs;
 
     struct 
     {

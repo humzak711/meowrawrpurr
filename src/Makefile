@@ -5,7 +5,7 @@ LIB_DIR := lib
 OBJ_FILES := $(LIB_DIR)/arch.o $(LIB_DIR)/setup_vmx.o $(LIB_DIR)/vmxon.o \
 	$(LIB_DIR)/vmcs.o $(LIB_DIR)/vcpu.o $(LIB_DIR)/segmentation.o \
 	$(LIB_DIR)/vmcs_err.o $(LIB_DIR)/vmexit_dispatcher.o \
-	$(LIB_DIR)/__entry_points.o
+	$(LIB_DIR)/vmexit_handlers.o $(LIB_DIR)/__entry_points.o
 
 SRC_OBJ := driver.o 
 

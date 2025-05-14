@@ -468,3 +468,20 @@ inline u64 __read_dr7(void)
 
     return dr7;
 }
+
+#include "include/debug.h"
+
+/* vmcs ops */
+bool guest_rip_add(u64 length)
+{
+    u64 rip = 0;
+    bool ret = __vmread(VMCS_GUEST_RIP, &rip);
+    return ret ? __vmwrite(VMCS_GUEST_RIP, rip + length) : ret;
+}
+
+bool guest_rip_next(void)
+{
+    u64 len = 0;
+    bool ret = __vmread(VMCS_RO_VMEXIT_INSTRUCTION_LENGTH, &len);
+    return ret ? guest_rip_add(len) : ret;
+}

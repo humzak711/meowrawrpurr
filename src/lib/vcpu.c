@@ -301,9 +301,9 @@ vcpu_arr_add_failed:
 void __setup_vcpu_exit(struct vcpu_ctx *ctx)
 {
     /* these better not fail or were fucked */
-    __vmread(VMCS_GUEST_RIP, &ctx->exit_guest_rip);
-    __vmread(VMCS_GUEST_RSP, &ctx->exit_guest_rsp);
-    __vmread(VMCS_GUEST_CR3, &ctx->exit_guest_cr3);
+    __vmread(VMCS_GUEST_RIP, &ctx->exit_regs.rip);
+    __vmread(VMCS_GUEST_RSP, &ctx->exit_regs.rsp);
+    __vmread(VMCS_GUEST_CR3, &ctx->exit_regs.cr3);
 }
 
 /* keep its memory available for reusage, 
