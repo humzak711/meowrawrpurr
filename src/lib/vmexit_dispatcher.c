@@ -1,6 +1,6 @@
 #include "include/vmexit_dispatcher.h"
 
-#include "vmexit_handlers.h"
+#include "include/vmexit_handlers.h"
 #include "include/arch.h"
 #include "include/debug.h"
 #include "include/vmcs_err.h"
