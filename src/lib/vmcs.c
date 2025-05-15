@@ -25,16 +25,16 @@ struct vmcs *alloc_vmcs(void)
         goto map_host_stack_mem_failed;
 
     /* guest mem */
-    vmcs->guest.msr_bitmap = kzalloc(BITMAP_SIZE, GFP_KERNEL);
-    if (!vmcs->guest.msr_bitmap)
+    vmcs->bmp.msr_bitmap = kzalloc(BITMAP_SIZE, GFP_KERNEL);
+    if (!vmcs->bmp.msr_bitmap)
         goto map_msr_bitmap_failed;
 
-    vmcs->guest.io_bitmap_a = kzalloc(BITMAP_SIZE, GFP_KERNEL);
-    if (!vmcs->guest.io_bitmap_a)
+    vmcs->bmp.io_bitmap_a = kzalloc(BITMAP_SIZE, GFP_KERNEL);
+    if (!vmcs->bmp.io_bitmap_a)
         goto map_io_bitmap_a_failed;
 
-    vmcs->guest.io_bitmap_b = kzalloc(BITMAP_SIZE, GFP_KERNEL);
-    if (!vmcs->guest.io_bitmap_b)
+    vmcs->bmp.io_bitmap_b = kzalloc(BITMAP_SIZE, GFP_KERNEL);
+    if (!vmcs->bmp.io_bitmap_b)
         goto map_io_bitmap_b_failed;
 
     vmcs->vmcs_region->header.fields.revision_id = 
@@ -44,10 +44,10 @@ struct vmcs *alloc_vmcs(void)
 
     vmcs->host.stack_size = HOST_STACK_SIZE;
 
-    vmcs->guest.msr_bitmap_size = BITMAP_SIZE;
+    vmcs->bmp.msr_bitmap_size = BITMAP_SIZE;
     
-    vmcs->guest.io_bitmap_a_size = BITMAP_SIZE;
-    vmcs->guest.io_bitmap_b_size = BITMAP_SIZE;
+    vmcs->bmp.io_bitmap_a_size = BITMAP_SIZE;
+    vmcs->bmp.io_bitmap_b_size = BITMAP_SIZE;
 
     union ia32_vmx_basic_t basic = {0};
     basic.val = __rdmsrl(IA32_VMX_BASIC);
@@ -88,10 +88,10 @@ struct vmcs *alloc_vmcs(void)
 
 
 map_io_bitmap_b_failed:
-    kfree(vmcs->guest.io_bitmap_a);
+    kfree(vmcs->bmp.io_bitmap_a);
 
 map_io_bitmap_a_failed:
-    kfree(vmcs->guest.msr_bitmap);
+    kfree(vmcs->bmp.msr_bitmap);
 
 map_msr_bitmap_failed:
     kfree(vmcs->host.stack);
@@ -111,14 +111,14 @@ void free_vmcs(struct vmcs *vmcs)
     if (!vmcs)
         return;
 
-    if (vmcs->guest.io_bitmap_b)
-        kfree(vmcs->guest.io_bitmap_b);
+    if (vmcs->bmp.io_bitmap_b)
+        kfree(vmcs->bmp.io_bitmap_b);
 
-    if (vmcs->guest.io_bitmap_a)
-        kfree(vmcs->guest.io_bitmap_a);
+    if (vmcs->bmp.io_bitmap_a)
+        kfree(vmcs->bmp.io_bitmap_a);
 
-    if (vmcs->guest.msr_bitmap)
-        kfree(vmcs->guest.msr_bitmap);
+    if (vmcs->bmp.msr_bitmap)
+        kfree(vmcs->bmp.msr_bitmap);
 
     if (vmcs->host.stack)
         kfree(vmcs->host.stack);
@@ -222,10 +222,10 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
 
     /* other ctrls */
 
-    ret &= __vmwrite(VMCS_CTRL_MSR_BITMAPS, __pa(vmcs->guest.msr_bitmap));
+    ret &= __vmwrite(VMCS_CTRL_MSR_BITMAPS, __pa(vmcs->bmp.msr_bitmap));
     
-    ret &= __vmwrite(VMCS_CTRL_IO_BITMAP_A, __pa(vmcs->guest.io_bitmap_a));
-    ret &= __vmwrite(VMCS_CTRL_IO_BITMAP_B, __pa(vmcs->guest.io_bitmap_b));
+    ret &= __vmwrite(VMCS_CTRL_IO_BITMAP_A, __pa(vmcs->bmp.io_bitmap_a));
+    ret &= __vmwrite(VMCS_CTRL_IO_BITMAP_B, __pa(vmcs->bmp.io_bitmap_b));
     
     ret &= __vmwrite(VMCS_CTRL_EXCEPTION_BITMAP, 0);
 
@@ -439,10 +439,10 @@ bool do_vmcs_checks(struct vcpu_ctx *ctx)
     int ret = 1;
 
     ret &= cr4.fields.cet == 0 || cr0.fields.wp != 0;
-    ret &= ((u64)ctx->vmcs->guest.msr_bitmap & 0xfff) == 0;
+    ret &= ((u64)ctx->vmcs->bmp.msr_bitmap & 0xfff) == 0;
 
-    ret &= ((u64)ctx->vmcs->guest.io_bitmap_a & 0xfff) == 0;
-    ret &= ((u64)ctx->vmcs->guest.io_bitmap_b & 0xfff) == 0;
+    ret &= ((u64)ctx->vmcs->bmp.io_bitmap_a & 0xfff) == 0;
+    ret &= ((u64)ctx->vmcs->bmp.io_bitmap_b & 0xfff) == 0;
 
     u32 pin = 0;
     u32 proc = 0;

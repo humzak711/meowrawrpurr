@@ -286,8 +286,7 @@ struct vmcs
 
         char *io_bitmap_b;
         size_t io_bitmap_b_size;
-        
-    } guest;
+    } bmp;
 
     struct 
     {
