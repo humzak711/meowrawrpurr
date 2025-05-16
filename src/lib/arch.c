@@ -469,8 +469,6 @@ inline u64 __read_dr7(void)
     return dr7;
 }
 
-#include "include/debug.h"
-
 /* vmcs ops */
 bool guest_rip_add(u64 length)
 {
