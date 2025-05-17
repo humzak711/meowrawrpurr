@@ -50,14 +50,14 @@
     popq %rbp
 .endm
 
-/* bool __virtualise_core_entry(u32 cpu_id) */
+/* bool __virtualise_core_entry(struct hv *hv, u32 cpu_id) */
 __virtualise_core_entry:
     pushall
 
-    movq $.__guest_entry, %rsi
-    movq %rsp, %rdx
+    movq $.__guest_entry, %rdx
+    movq %rsp, %rcx
     pushfq 
-    popq %rcx
+    popq %r8
 
     call __virtualise_core
 
@@ -78,21 +78,14 @@ __virtualise_core_entry:
 /* entry point for vmexit dispatcher */
 __vmexit_entry:
 
-    /* sub 8 from rsp so its pointing to vcpu ptr */
+    /* sub 8 from rsp so its pointing to vcpu ptr, then save regs to stack */
     subq $8, %rsp 
     pushall
 
-    /* pushall subs %rsp by 128, so we add it to point to vcpu ptr again */
+    /* we finna pass vcpu ctx ptr as first arg and regs as second */
     movq 128(%rsp), %rdi
-
-    /* rsp currently holds struct regs *, so pass that as second arg */
     movq %rsp, %rsi
-
-    pushq %rdi //  preserve vcpu ptr
-    subq $32, %rsp
     call vmexit_dispatcher
-    addq $32, %rsp
-    popq %rdi
  
     /* if the dispatcher returns 0 then cleanup */
     test %eax, %eax
@@ -111,6 +104,7 @@ __vmexit_entry:
 .__vmxoff:
 
     /* vmxoff dis shi and setup vcpu ctx */
+    movq 128(%rsp), %rdi
     call __devirtualise_core
 
     popall // restore guests regs

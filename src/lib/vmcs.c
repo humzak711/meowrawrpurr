@@ -1,9 +1,9 @@
 #include "include/vmcs.h"
 
-#include "include/arch.h"
 #include "include/debug.h"
 #include "include/segmentation.h"
 #include "include/vcpu.h"
+#include "include/ept.h"
 
 #include <linux/slab.h>
 
@@ -19,12 +19,10 @@ struct vmcs *alloc_vmcs(void)
     if (!vmcs)
         goto map_vmcs_region_failed;
 
-    /* host mem */
     vmcs->host.stack = kzalloc(HOST_STACK_SIZE, GFP_KERNEL);
     if (!vmcs->host.stack)
         goto map_host_stack_mem_failed;
 
-    /* guest mem */
     vmcs->bmp.msr_bitmap = kzalloc(BITMAP_SIZE, GFP_KERNEL);
     if (!vmcs->bmp.msr_bitmap)
         goto map_msr_bitmap_failed;
@@ -157,7 +155,7 @@ bool vmwrite_adjusted(u64 field, u32 msr, u32 ctl)
 /* todo: check if features r supported by cpu and their status 
     before initialising corresponding vmcs fields */
 
-bool setup_vmcs_ctls(struct vmcs *vmcs)
+bool setup_vmcs_ctls(struct vcpu_ctx *ctx)
 {
     int ret = 1;
 
@@ -165,7 +163,7 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
 
     union vmcs_vmx_pinbased_ctls_t pinbased_ctls = {0};
     ret &= vmwrite_adjusted(VMCS_CTRL_PINBASED_CONTROLS, 
-           vmcs->ctl_msr_cache.pin, pinbased_ctls.ctl);
+           ctx->vmcs->ctl_msr_cache.pin, pinbased_ctls.ctl);
 
     /* procbased ctls */
 
@@ -176,7 +174,7 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
     procbased_ctls.fields.activate_secondary_controls = 1;
         
     ret &= vmwrite_adjusted(VMCS_CTRL_PROCBASED_CTLS, 
-           vmcs->ctl_msr_cache.proc, procbased_ctls.ctl);
+           ctx->vmcs->ctl_msr_cache.proc, procbased_ctls.ctl);
     
     /* secondary procbased ctls */
 
@@ -188,7 +186,7 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
     procbased_ctls2.fields.conceal_vmx_from_pt = 1;
 
     ret &= vmwrite_adjusted(VMCS_CTRL_PROCBASED_CTLS2,
-           vmcs->ctl_msr_cache.proc2, procbased_ctls2.ctl);
+           ctx->vmcs->ctl_msr_cache.proc2, procbased_ctls2.ctl);
 
     /* tertiary procbased ctls */
 
@@ -203,7 +201,7 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
     exit_ctls.fields.conceal_vmx_from_pt = 1;
 
     ret &= vmwrite_adjusted(VMCS_CTRL_PRIMARY_VMEXIT_CONTROLS, 
-           vmcs->ctl_msr_cache.exit, exit_ctls.ctl);
+           ctx->vmcs->ctl_msr_cache.exit, exit_ctls.ctl);
 
     /* secondary exit ctls */
 
@@ -217,15 +215,15 @@ bool setup_vmcs_ctls(struct vmcs *vmcs)
     entry_ctls.fields.conceal_vmx_from_pt = 1;
 
     ret &= vmwrite_adjusted(VMCS_CTRL_VMENTRY_CONTROLS, 
-           vmcs->ctl_msr_cache.entry, entry_ctls.ctl);
+           ctx->vmcs->ctl_msr_cache.entry, entry_ctls.ctl);
 
 
     /* other ctrls */
 
-    ret &= __vmwrite(VMCS_CTRL_MSR_BITMAPS, __pa(vmcs->bmp.msr_bitmap));
+    ret &= __vmwrite(VMCS_CTRL_MSR_BITMAPS, __pa(ctx->vmcs->bmp.msr_bitmap));
     
-    ret &= __vmwrite(VMCS_CTRL_IO_BITMAP_A, __pa(vmcs->bmp.io_bitmap_a));
-    ret &= __vmwrite(VMCS_CTRL_IO_BITMAP_B, __pa(vmcs->bmp.io_bitmap_b));
+    ret &= __vmwrite(VMCS_CTRL_IO_BITMAP_A, __pa(ctx->vmcs->bmp.io_bitmap_a));
+    ret &= __vmwrite(VMCS_CTRL_IO_BITMAP_B, __pa(ctx->vmcs->bmp.io_bitmap_b));
     
     ret &= __vmwrite(VMCS_CTRL_EXCEPTION_BITMAP, 0);
 

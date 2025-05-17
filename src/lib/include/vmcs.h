@@ -270,6 +270,8 @@ struct vmcs
     struct vmcs_region *vmcs_region;
     u64 vmcs_region_phys;
 
+    u64 eptp;
+
     struct 
     { 
         char *stack;
@@ -334,7 +336,7 @@ bool check_ctl(u32 msr, u32 ctl);
 
 bool vmwrite_adjusted(u64 field, u32 msr, u32 ctl);
 
-bool setup_vmcs_ctls(struct vmcs *vmcs);
+bool setup_vmcs_ctls(struct vcpu_ctx *ctx);
 bool setup_vmcs_host_regs(struct vcpu_ctx *ctx, u64 rip);
 bool setup_vmcs_guest_regs(struct vcpu_ctx *ctx, u64 rip, 
                            u64 rsp, u64 rflags);

@@ -3,6 +3,7 @@
 
 #include "arch.h"
 #include "vmxon.h"
+#include "ept.h"
 
 #include <linux/mutex.h>
 
@@ -24,16 +25,10 @@ struct vcpu_ctx
     struct vmcs *vmcs;
     u32 cpu_id;
 
-    void *stashed_data;
+    struct hv *hv_global;
     bool virtualised;
 } __pack;
 size_assert(struct vcpu_ctx, 61);
-
-#define vcpu_ctx_stash_data(vcpu_ctx, data) \
-    (((vcpu_ctx)->stashed_data) = (data))
-
-#define get_vcpu_ctx_stash(vcpu_ctx) \
-    ((vcpu_ctx)->stashed_data)
 
 struct hv
 {
@@ -41,19 +36,28 @@ struct hv
     u32 vcpu_ctx_arr_count;
 
     struct mutex vcpu_ctx_arr_lock;
+
+    /* icl to save memory finna share epts, best 
+       way for this icl */
+    struct 
+    {
+        struct ept *ept;
+        struct mutex lock;
+    } epts;
 };
 
-extern struct hv hv_global;
+struct hv *alloc_hv(void);
+void free_hv(struct hv *hv);
 
-int hv_global_add_vcpu(struct vcpu_ctx *ctx);
-int hv_global_remove_vcpu(struct vcpu_ctx *ctx);
-struct vcpu_ctx *hv_global_get_vcpu(u32 cpu_id);
+int hv_add_vcpu(struct hv *hv, struct vcpu_ctx *ctx);
+int hv_remove_vcpu(struct hv *hv, struct vcpu_ctx *ctx);
+struct vcpu_ctx *hv_get_vcpu(struct hv *hv, u32 cpu_id);
 
 struct vcpu_ctx *alloc_vcpu(u32 cpu_id);
 void free_vcpu(struct vcpu_ctx *vcpu);
 
-struct vcpu_ctx *__virtualise_core(
-    u32 cpu_id, u64 guest_rip, u64 guest_rsp, u64 guest_rflags);
+struct vcpu_ctx *__virtualise_core(struct hv *hv, u32 cpu_id, 
+    u64 guest_rip, u64 guest_rsp, u64 guest_rflags);
 
 void __setup_vcpu_exit(struct vcpu_ctx *ctx);
 void __devirtualise_core(struct vcpu_ctx *ctx);
