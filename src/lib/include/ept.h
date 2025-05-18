@@ -6,8 +6,7 @@
 #define PT_SIZE 4096
 
 /* entries per pml3 and pml2 */
-#define PML3_ENTRIES 512
-#define PML2_ENTRIES 512
+#define PT_ENTRIES 512
 
 /* bcoz were doign 2mb pages */
 #define EPT_PAGE_SIZE ((1024 * 1024) * 2)
@@ -17,9 +16,11 @@
   so only need to map one pml3 in that case */
 struct ept 
 {
+
+    union eptp_t eptp;
     union ept_pml4e_t *pml4;
     union ept_pml3e_t *pml3;
-    union ept_pml2e_2mb_t *pml2_arr[PML3_ENTRIES];
+    union ept_pml2e_2mb_t *pml2_arr[PT_ENTRIES];
 };
 
 struct ept *map_ept(void);

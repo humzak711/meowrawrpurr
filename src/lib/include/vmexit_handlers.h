@@ -105,14 +105,30 @@ typedef enum {
 #define VMENTRY_MSR_LOADING 34
 #define VMENTRY_MCE 41
 
-#define EPT_VIOLATION_DATA_READ (1UL << 0)
-#define EPT_VIOLATION_DATA_WRITE (1UL << 1)
-#define EPT_VIOLATION_INST_FETCH (1UL << 2)
-#define EPT_VIOLATION_GPA_READABLE (1UL << 3)
-#define EPT_VIOLATION_GPA_WRITEABLE (1UL << 4)
-#define EPT_VIOLATION_GPA_EXECUTABLE (1UL << 5)
-#define EPT_VIOLATION_GLA_VALID (1UL << 7)
-#define EPT_VIOLATION_XLAT_VALID (1UL << 8)
+union ept_violation_qualification_t
+{
+    u64 val;
+    struct 
+    {
+        u64 r : 1;
+        u64 w : 1;
+        u64 x : 1;
+        u64 gpa_r : 1;
+        u64 gpa_w : 1;
+        u64 gpa_x : 1;
+        u64 gpa_user_x : 1;
+        u64 gla_valid : 1;
+        u64 access_gpa : 1;
+        u64 adv_user_linear_addr : 1;
+        u64 adv_rw : 1;
+        u64 adv_nx : 1;
+        u64 nmi_unblocking_iret : 1;
+        u64 shadow_stack_access : 1;
+        u64 reserved0 : 2;
+        u64 pt : 1;
+        u64 reserved1 : 47;
+    } fields;
+};
 
 #define FEATURE_BITS_ECX_VMX (1 << 5)
 #define FEATURE_BITS_ECX_HV (1 << 31)

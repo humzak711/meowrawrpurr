@@ -33,7 +33,7 @@ struct ept *map_ept(void)
     /* now we go iterate through our pml3 entries and 
       for each of em map the pml2 */
     u32 pml3e = 0;
-    for (; pml3e < PML3_ENTRIES; pml3e++) {
+    for (; pml3e < ARRAY_LEN(ept->pml2_arr); pml3e++) {
 
         ept->pml2_arr[pml3e] = kzalloc(PT_SIZE, GFP_KERNEL);
         if (!ept->pml2_arr[pml3e])
@@ -47,11 +47,17 @@ struct ept *map_ept(void)
             __pa(ept->pml2_arr[pml3e]) >> 12;
     }
 
+    ept->eptp.fields.memtype = EPT_WB;
+    ept->eptp.fields.walklength = 3;
+    ept->eptp.fields.pfn = __pa(ept->pml4) >> 12;
+
     return ept;
 
 pml2_failed:
-    for (u32 i = 0; i < pml3e; i++) 
-        kfree(ept->pml2_arr[i]);
+    for (u32 i = 0; i < pml3e; i++) {
+        if (ept->pml2_arr[i])
+            kfree(ept->pml2_arr[i]);
+    }
 
     kfree(ept->pml3);
 
@@ -68,7 +74,7 @@ void unmap_ept(struct ept *ept)
     if (!ept)
         return;
 
-    for (u32 i = 0; i < PML3_ENTRIES; i++) {
+    for (u32 i = 0; i < ARRAY_LEN(ept->pml2_arr); i++) {
         if (ept->pml2_arr[i])
             kfree(ept->pml2_arr[i]);
     }

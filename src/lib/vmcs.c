@@ -184,6 +184,8 @@ bool setup_vmcs_ctls(struct vcpu_ctx *ctx)
     procbased_ctls2.fields.enable_invpcid = 1;
     procbased_ctls2.fields.enable_xsaves_xrstors = 1;
     procbased_ctls2.fields.conceal_vmx_from_pt = 1;
+    procbased_ctls2.fields.enable_ept = 1;
+    procbased_ctls2.fields.enable_vpid = 1;
 
     ret &= vmwrite_adjusted(VMCS_CTRL_PROCBASED_CTLS2,
            ctx->vmcs->ctl_msr_cache.proc2, procbased_ctls2.ctl);
@@ -225,6 +227,9 @@ bool setup_vmcs_ctls(struct vcpu_ctx *ctx)
     ret &= __vmwrite(VMCS_CTRL_IO_BITMAP_A, __pa(ctx->vmcs->bmp.io_bitmap_a));
     ret &= __vmwrite(VMCS_CTRL_IO_BITMAP_B, __pa(ctx->vmcs->bmp.io_bitmap_b));
     
+    ret &= __vmwrite(VMCS_CTRL_EPTP, ctx->hv_global->epts.ept->eptp.val);
+    ret &= __vmwrite(VMCS_CTRL_VPID, 1);
+
     ret &= __vmwrite(VMCS_CTRL_EXCEPTION_BITMAP, 0);
 
     ret &= __vmwrite(VMCS_CTRL_CR0_GUEST_HOST_MASK, 0);
@@ -436,11 +441,18 @@ bool do_vmcs_checks(struct vcpu_ctx *ctx)
 
     int ret = 1;
 
-    ret &= cr4.fields.cet == 0 || cr0.fields.wp != 0;
     ret &= ((u64)ctx->vmcs->bmp.msr_bitmap & 0xfff) == 0;
 
     ret &= ((u64)ctx->vmcs->bmp.io_bitmap_a & 0xfff) == 0;
     ret &= ((u64)ctx->vmcs->bmp.io_bitmap_b & 0xfff) == 0;
+
+    ret &= ((u64)ctx->hv_global->epts.ept->pml4 & 0xfff) == 0;
+    ret &= ((u64)ctx->hv_global->epts.ept->pml3 & 0xfff) == 0;
+
+    for (u32 i = 0; i < ARRAY_LEN(ctx->hv_global->epts.ept->pml2_arr); i++) {
+        if (ctx->hv_global->epts.ept->pml2_arr[i])
+            ret &= ((u64)ctx->hv_global->epts.ept->pml2_arr & 0xfff) == 0;
+    }
 
     u32 pin = 0;
     u32 proc = 0;

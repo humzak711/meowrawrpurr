@@ -767,13 +767,28 @@ union ia32_vmx_ept_vpid_cap_t
 
 #define IA32_VMX_VMFUNC 0x491
 
-enum ept_memory_types
+typedef enum 
 {
     EPT_UC, 
     EPT_WC, 
     EPT_WT = 4,
     EPT_WP,
     EPT_WB
+} ept_memory_types_t;
+
+union eptp_t
+{
+    u64 val;
+    struct 
+    {
+        u64 memtype : 3;
+        u64 walklength : 3;
+        u64 accessed_dirty_enabled : 1;
+        u64 ss_ar_enforcement : 1;
+        u64 reserved0 : 4;
+        u64 pfn : 51;
+        u64 reserved1 : 1;
+    } fields;
 };
 
 union ept_pml4e_t
@@ -789,8 +804,7 @@ union ept_pml4e_t
         u64 reserved1 : 1;
         u64 user_x : 1;
         u64 reserved2 : 1;
-        u64 pml3_pfn : 39;
-        u64 reserved3 : 13;
+        u64 pml3_pfn : 52;
     } fields;
 };
 
@@ -903,6 +917,77 @@ union ept_pml1e_t
         u64 sub_pg_write_permissions : 1;
         u64 reserved4 : 1;
         u64 suppress_ve : 1;
+    } fields;
+}; 
+
+#define IA32_MTRRCAP 0xFE
+union ia32_mtrrcap_t 
+{
+    u64 val;
+    struct 
+    {
+        u64 vcnt : 8;
+        u64 fixed_range_mtrrs : 1;
+        u64 reserved0 : 1;
+        u64 wc : 1;
+        u64 smrr : 1;
+        u64 prmrr : 1;
+        u64 reserved1 : 51;
+    } fields;
+};
+
+typedef enum 
+{
+    IA32_MTRR_PHYSBASE0 = 0x200,
+    IA32_MTRR_PHYSMASK0,
+    IA32_MTRR_PHYSBASE1,
+    IA32_MTRR_PHYSMASK1,
+    IA32_MTRR_PHYSBASE2,
+    IA32_MTRR_PHYSMASK2,
+    IA32_MTRR_PHYSBASE3,
+    IA32_MTRR_PHYSMASK3,
+    IA32_MTRR_PHYSBASE4,
+    IA32_MTRR_PHYSMASK4,
+    IA32_MTRR_PHYSBASE5,
+    IA32_MTRR_PHYSMASK5,
+    IA32_MTRR_PHYSBASE6,
+    IA32_MTRR_PHYSMASK6,
+    IA32_MTRR_PHYSBASE7,
+    IA32_MTRR_PHYSMASK7,
+    IA32_MTRR_PHYSBASE8,
+    IA32_MTRR_PHYSMASK8,
+    IA32_MTRR_PHYSBASE9,
+    IA32_MTRR_PHYSMASK9,
+} ia32_mtrr_phys_t;
+
+#define IA32_MTRR_FIX64K_00000 0x250
+
+#define IA32_MTRR_FIX16K_80000 0x258
+#define IA32_MTRR_FIX16K_A0000 0x259
+
+typedef enum 
+{
+    IA32_MTRR_FIX4K_C0000 = 0x268,
+    IA32_MTRR_FIX4K_C8000,
+    IA32_MTRR_FIX4K_D0000,
+    IA32_MTRR_FIX4K_D8000,
+    IA32_MTRR_FIX4K_E0000,
+    IA32_MTRR_FIX4K_E8000,
+    IA32_MTRR_FIX4K_F0000,
+    IA32_MTRR_FIX4K_F8000,
+} ia32_mtrr_fix4k_t;
+
+#define IA32_MTRR_DEF_TYPE 0x2ff
+union ia32_mtrr_def_type_t 
+{
+    u64 val;
+    struct 
+    {
+        u64 default_memtype : 3;
+        u64 reserved0 : 7;
+        u64 fixed_range_mtrr_enable : 1;
+        u64 mtrr_enable : 1;
+        u64 reserved1 : 52;
     } fields;
 };
 

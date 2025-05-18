@@ -270,8 +270,6 @@ struct vmcs
     struct vmcs_region *vmcs_region;
     u64 vmcs_region_phys;
 
-    u64 eptp;
-
     struct 
     { 
         char *stack;

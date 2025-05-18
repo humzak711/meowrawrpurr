@@ -50,7 +50,7 @@ typedef enum
     ENC_VMCS_COMPONENT_HIGH(index, type, natural)
 
 // 16-bit fields (control)
-#define VMCS_CTRL_VIRTUAL_PROCESSOR_IDENTIFIER \
+#define VMCS_CTRL_VPID \
     ENC_VMCS_COMPONENT_FULL_16(0, control)
 #define VMCS_CTRL_POSTED_INTERRUPT_NOTIFICATION_VECTOR \
     ENC_VMCS_COMPONENT_FULL_16(1, control)
@@ -128,7 +128,7 @@ typedef enum
     ENC_VMCS_COMPONENT_FULL_64(11, control)
 #define VMCS_CTRL_VM_FUNCTION_CONTROLS \
     ENC_VMCS_COMPONENT_FULL_64(12, control)
-#define VMCS_CTRL_EPT_POINTER \
+#define VMCS_CTRL_EPTP \
     ENC_VMCS_COMPONENT_FULL_64(13, control)
 #define VMCS_CTRL_EOI_EXIT_BITMAP_0 \
     ENC_VMCS_COMPONENT_FULL_64(14, control)

@@ -127,5 +127,6 @@ __vmexit_entry:
        this isnt setup properly */
     vmresume 
 
+    nop
     int3
 .size __vmexit_entry, . - __vmexit_entry
