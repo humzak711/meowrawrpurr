@@ -13,6 +13,8 @@
 
 #define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
 
+bool first_set_bit(u64 *index, u64 mask);
+
 union access_rights_t
 {
     u32 val;
@@ -959,6 +961,28 @@ typedef enum
     IA32_MTRR_PHYSBASE9,
     IA32_MTRR_PHYSMASK9,
 } ia32_mtrr_phys_t;
+
+union ia32_mtrr_physbase_t 
+{
+    u64 val;
+    struct 
+    {
+        u64 type : 8;
+        u64 reserved0 : 4;
+        u64 physbase : 52;
+    } fields;
+};
+
+union ia32_mtrr_physmask_t 
+{
+    u64 val;
+    struct 
+    {
+        u64 reserved0 : 11;
+        u64 valid : 1;
+        u64 physmask : 52;
+    } fields;
+};
 
 #define IA32_MTRR_FIX64K_00000 0x250
 

@@ -451,7 +451,7 @@ bool do_vmcs_checks(struct vcpu_ctx *ctx)
 
     for (u32 i = 0; i < ARRAY_LEN(ctx->hv_global->epts.ept->pml2_arr); i++) {
         if (ctx->hv_global->epts.ept->pml2_arr[i])
-            ret &= ((u64)ctx->hv_global->epts.ept->pml2_arr & 0xfff) == 0;
+            ret &= ((u64)ctx->hv_global->epts.ept->pml2_arr[i] & 0xfff) == 0;
     }
 
     u32 pin = 0;

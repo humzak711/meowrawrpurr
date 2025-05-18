@@ -1,5 +1,20 @@
 #include "include/arch.h"
 
+bool first_set_bit(u64 *index, u64 mask)
+{
+    if (mask == 0)
+        return false;
+
+    u64 i = 0;
+    while ((mask & 1) == 0) {
+        mask >>= 1;
+        i++;
+    }
+
+    *index = i;
+    return true;
+}
+
 /* ctrls */
 
 inline u64 __do_read_cr0(void)

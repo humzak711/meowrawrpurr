@@ -145,5 +145,7 @@ struct vmexit_handler
 };
 
 bool handle_cpuid(struct vcpu_ctx *ctx, struct regs *guest_regs);
+bool handle_ept_fault(struct vcpu_ctx *ctx, struct regs *guest_regs);
+bool handle_ept_misconfig(struct vcpu_ctx *ctx, struct regs *guest_regs);
 
 #endif

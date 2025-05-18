@@ -32,19 +32,28 @@ struct ept *map_ept(void)
 
     /* now we go iterate through our pml3 entries and 
       for each of em map the pml2 */
-    u32 pml3e = 0;
-    for (; pml3e < ARRAY_LEN(ept->pml2_arr); pml3e++) {
+    u64 pml2e_pfn = 0;
+    u32 pml2_count = 0;
+    for (; pml2_count < ARRAY_LEN(ept->pml2_arr); pml2_count++) {
 
-        ept->pml2_arr[pml3e] = kzalloc(PT_SIZE, GFP_KERNEL);
-        if (!ept->pml2_arr[pml3e])
+        ept->pml2_arr[pml2_count] = kzalloc(PT_SIZE, GFP_KERNEL);
+        if (!ept->pml2_arr[pml2_count])
             goto pml2_failed;
 
-        ept->pml3[pml3e].fields.r = 1;
-        ept->pml3[pml3e].fields.w = 1;
-        ept->pml3[pml3e].fields.x = 1;
+        ept->pml3[pml2_count].fields.r = 1;
+        ept->pml3[pml2_count].fields.w = 1;
+        ept->pml3[pml2_count].fields.x = 1;
         
-        ept->pml3[pml3e].fields.pml2_pfn = 
-            __pa(ept->pml2_arr[pml3e]) >> 12;
+        ept->pml3[pml2_count].fields.pml2_pfn = 
+            __pa(ept->pml2_arr[pml2_count]) >> 12;
+        
+        for (u32 i = 0; i < PT_ENTRIES; i++) {
+            ept->pml2_arr[pml2_count][i].fields.r = 1;
+            ept->pml2_arr[pml2_count][i].fields.w = 1;
+            ept->pml2_arr[pml2_count][i].fields.x = 1;
+            ept->pml2_arr[pml2_count][i].fields.page_2mb = 1;
+            ept->pml2_arr[pml2_count][i].fields.pfn = pml2e_pfn++;
+        }
     }
 
     ept->eptp.fields.memtype = EPT_WB;
@@ -54,7 +63,7 @@ struct ept *map_ept(void)
     return ept;
 
 pml2_failed:
-    for (u32 i = 0; i < pml3e; i++) {
+    for (u32 i = 0; i < pml2_count; i++) {
         if (ept->pml2_arr[i])
             kfree(ept->pml2_arr[i]);
     }
@@ -88,15 +97,43 @@ void unmap_ept(struct ept *ept)
     kfree(ept);
 }
 
-/* basically in this function 
-   were gonna setup the caching 
-   policy for our epts based on mtrrs 
-   because if we dont do that, that isnt
-   very good lmao, and we will set our pages
-   to their corresponding pfn's too */
+void __init_ept_memtypes(struct ept *ept)
+{
+    union ia32_mtrrcap_t cap;
+    cap.val = __rdmsrl(IA32_MTRRCAP);
+
+    for (u32 mtrr_reg = 0; mtrr_reg < cap.fields.vcnt; mtrr_reg++) {
+
+        union ia32_mtrr_physmask_t mask;
+        mask.val = __rdmsrl(IA32_MTRR_PHYSMASK0 + (mtrr_reg + 2));
+
+        if (!mask.fields.valid)
+            continue;
+
+        union ia32_mtrr_physbase_t base;
+        base.val = __rdmsrl(IA32_MTRR_PHYSBASE0 + (mtrr_reg * 2));
+        u64 type = base.fields.type;
+
+        u64 bit = 0;
+        if (!first_set_bit(&bit, mask.fields.physmask << 12))
+            continue;
+
+        u64 base_addr = base.fields.physbase << 12;
+        u64 end_addr = base_addr + ((1ULL << bit) - 1ULL);
+
+        u64 base_pfn = base_addr >> PAGE_SHIFT_2MB;
+        u64 end_pfn = end_addr >> PAGE_SHIFT_2MB;
+
+        for (u64 pfn = base_pfn; pfn <= end_pfn; pfn++) {
+            u32 pml2_i = pfn / PT_ENTRIES;
+            u32 pml2e_i = pfn % PT_ENTRIES;
+
+            ept->pml2_arr[pml2_i][pml2e_i].fields.memtype = type;
+        }
+    }
+}
+
 void init_ept_pages(struct ept *ept)
 {
-    u64 pfn = 0;
-
-
+    __init_ept_memtypes(ept);
 }

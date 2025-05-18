@@ -24,3 +24,21 @@ bool handle_cpuid(struct vcpu_ctx *ctx, struct regs *guest_regs)
 
     return guest_rip_next();
 }
+
+/* todo: ept handling */
+
+bool handle_ept_fault(struct vcpu_ctx *ctx, struct regs *guest_regs)
+{
+    for (;;) {
+        
+    }
+    return false;
+}
+
+bool handle_ept_misconfig(struct vcpu_ctx *ctx, struct regs *guest_regs)
+{
+    for (;;) {
+        
+    }
+    return false;
+}
