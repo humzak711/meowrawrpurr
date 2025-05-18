@@ -767,6 +767,144 @@ union ia32_vmx_ept_vpid_cap_t
 
 #define IA32_VMX_VMFUNC 0x491
 
+enum ept_memory_types
+{
+    EPT_UC, 
+    EPT_WC, 
+    EPT_WT = 4,
+    EPT_WP,
+    EPT_WB
+};
+
+union ept_pml4e_t
+{
+    u64 val;
+    struct 
+    {
+        u64 r : 1;
+        u64 w : 1;
+        u64 x : 1;
+        u64 reserved0 : 5;
+        u64 accessed : 1;
+        u64 reserved1 : 1;
+        u64 user_x : 1;
+        u64 reserved2 : 1;
+        u64 pml3_pfn : 52;
+    } fields;
+};
+
+union ept_pml3e_1gb_t 
+{
+    u64 val;
+    struct 
+    {
+        u64 r : 1;
+        u64 w : 1;
+        u64 x : 1;
+        u64 memtype : 3;
+        u64 ignore_pat : 1;
+        u64 page_1gb : 1;
+        u64 accessed : 1;
+        u64 dirty : 1;
+        u64 user_x : 1;
+        u64 reserved0 : 1;
+        u64 reserved1 : 18;
+        u64 pfn : 22;
+        u64 reserved2 : 5;
+        u64 guest_pg_verification : 1;
+        u64 pg_write_access : 1;
+        u64 reserved3 : 1;
+        u64 supervisor_shadow_stack : 1;
+        u64 reserved4 : 2;
+        u64 suppress_ve : 1;
+    } fields;
+};
+
+union ept_pml3e_t
+{
+    u64 val;
+    struct 
+    {
+        u64 r : 1;
+        u64 w : 1;
+        u64 x : 1;
+        u64 reserved0 : 7;
+        u64 user_x : 1;
+        u64 reserved1 : 1;
+        u64 pml2_pfn : 39;
+        u64 reserved3 : 13;
+    } fields;
+};
+
+union ept_pml2e_2mb_t 
+{
+    u64 val;
+    struct 
+    {
+        u64 r : 1;
+        u64 w : 1;
+        u64 x : 1;
+        u64 memtype : 3;
+        u64 ignore_pat : 1;
+        u64 page_2mb : 1;
+        u64 accessed : 1;
+        u64 dirty : 1;
+        u64 user_x : 1;
+        u64 reserved0 : 10;
+        u64 pfn : 30;
+        u64 reserved1 : 6;
+        u64 guest_pg_verification : 1;
+        u64 pg_write_accesste : 1;
+        u64 reserved2 : 1;
+        u64 supervisor_shadow_stack : 1;
+        u64 reserved3 : 2;
+        u64 suppress_ve : 1; 
+    } fields;
+};
+
+union ept_pml2e_t
+{
+    u64 val;
+    struct 
+    {
+        u64 r : 1;
+        u64 w : 1;
+        u64 x : 1;
+        u64 reserved0 : 7;
+        u64 user_x : 1;
+        u64 reserved1 : 1;
+        u64 pml1_pfn : 39;
+        u64 reserved2 : 13;
+    } fields;
+};
+
+union ept_pml1e_t 
+{
+    u64 val;
+    struct 
+    {
+        u64 r : 1;
+        u64 w : 1;
+        u64 x : 1;
+        u64 memtype : 3;
+        u64 ignore_pat : 1;
+        u64 reserved0 : 1;
+        u64 accessed : 1;
+        u64 dirty : 1;
+        u64 user_x : 1;
+        u64 reserved1 : 1;
+        u64 pfn : 39;
+        u64 reserved2 : 6;
+        u64 guest_pg_verification : 1;
+        u64 pg_write_access : 1;
+        u64 reserved3 : 1;
+        u64 supervisor_shadow_stack : 1;
+        u64 sub_pg_write_permissions : 1;
+        u64 reserved4 : 1;
+        u64 suppress_ve : 1;
+    } fields;
+};
+
 /* vmx operations */
 
 inline bool __vmxon(u64 phys);

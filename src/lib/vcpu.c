@@ -16,10 +16,16 @@ struct hv *alloc_hv(void)
     if (!hv)
         return ERR_PTR(-ENOMEM);
 
+    struct ept *ept = map_ept();
+    if (IS_ERR(ept)) {
+        kfree(hv);
+        return (void *)ept;
+    }
+
+    init_ept_pages(ept);
+    hv->epts.ept = ept;
+
     mutex_init(&hv->vcpu_ctx_arr_lock);
-
-    /* setup epts */
-
     mutex_init(&hv->epts.lock);
 
     return hv;
@@ -32,6 +38,7 @@ void free_hv(struct hv *hv)
     if (!hv)
         return;
 
+    /* unmap vcpu ctx gang */
     mutex_lock(&hv->vcpu_ctx_arr_lock);
 
     if (hv->vcpu_ctx_arr && hv->vcpu_ctx_arr_count > 0) {
@@ -41,6 +48,14 @@ void free_hv(struct hv *hv)
     }
 
     mutex_unlock(&hv->vcpu_ctx_arr_lock);
+
+    /* unmap epts after */
+    mutex_lock(&hv->epts.lock);
+    
+    if (hv->epts.ept)
+        unmap_ept(hv->epts.ept);
+
+    mutex_unlock(&hv->epts.lock);
 
     kfree(hv);
 }

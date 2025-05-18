@@ -15,15 +15,15 @@ bool vmexit_dispatcher(struct vcpu_ctx *ctx, struct regs *guest_regs)
 {    
     union vmexit_reason_t reason;
     if (!__vmread32(VMCS_RO_EXIT_REASON, &reason.val)) {
-        HV_LOG(KERN_ERR, "reading vmexit reason failed, core %u", 
-               ctx->cpu_id);
+        /*HV_LOG(KERN_ERR, "reading vmexit reason failed, core %u", 
+               ctx->cpu_id);*/
 
         return false;
     }
 
     if (reason.fields.vmentry_failure != 0) {
 
-        u64 qualification = 0;
+        /*u64 qualification = 0;
         __vmread(VMCS_RO_EXIT_QUALIFICATION, &qualification);
 
         HV_LOG(KERN_ERR, 
@@ -33,6 +33,7 @@ bool vmexit_dispatcher(struct vcpu_ctx *ctx, struct regs *guest_regs)
         char *reason = vmcs_get_err(vmcs_get_errcode());
         if (reason != NULL) 
             HV_LOG(KERN_ERR, "vmcs errcode %s, core %u", reason, ctx->cpu_id);
+        */
 
         return false;
     }   
