@@ -26,5 +26,8 @@ bool vmexit_dispatcher(struct vcpu_ctx *ctx, struct regs *guest_regs)
             return vmexit_dispatch_table[i].func(ctx, guest_regs);
     }
 
+    for (;;) {
+        
+    }
     return guest_rip_next();
 }
