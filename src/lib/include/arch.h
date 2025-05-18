@@ -789,7 +789,8 @@ union ept_pml4e_t
         u64 reserved1 : 1;
         u64 user_x : 1;
         u64 reserved2 : 1;
-        u64 pml3_pfn : 52;
+        u64 pml3_pfn : 39;
+        u64 reserved3 : 13;
     } fields;
 };
 
