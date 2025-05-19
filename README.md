@@ -10,4 +10,4 @@ without crashing
 
 //todo:
 - not emulate shit like a silly billy & get system to run smooth/not crash
-- proper cleanup routines + rewrite my code to not be shit
+- proper cleanup routines + proper safety/feature checks + rewrite my code to not be shit
