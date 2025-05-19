@@ -117,7 +117,7 @@ void __init_ept_mtrr(struct ept *ept)
     for (u32 mtrr_reg = 0; mtrr_reg < ept->mtrr.vcnt; mtrr_reg++) {
 
         union ia32_mtrr_physmask_t mask;
-        mask.val = __rdmsrl(IA32_MTRR_PHYSMASK0 + (mtrr_reg + 2));
+        mask.val = __rdmsrl(IA32_MTRR_PHYSMASK0 + (mtrr_reg * 2));
 
         if (!mask.fields.valid)
             continue;
