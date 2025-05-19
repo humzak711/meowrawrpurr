@@ -143,6 +143,11 @@ void __init_ept_mtrr(struct ept *ept)
 void __setup_ept_page_mtrr(union ept_pml2e_2mb_t *pml2e, u64 pfn,
                            struct mtrr_data *mtrrs, u32 vcnt)
 {
+    if (pfn == 0) {
+        type = EPT_UC;
+        goto apply;
+    }
+    
     u32 type = EPT_WB;
     u64 base = pfn << PAGE_SHIFT_2MB;
     u64 end = (base + PAGE_SHIFT_2MB - 1);
@@ -156,6 +161,7 @@ void __setup_ept_page_mtrr(union ept_pml2e_2mb_t *pml2e, u64 pfn,
         }
     }
 
+apply:
     pml2e->fields.pfn = pfn;
     pml2e->fields.memtype = type;
     pml2e->fields.r = 1;
