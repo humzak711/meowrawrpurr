@@ -119,15 +119,14 @@ void __init_ept_mtrr(struct ept *ept)
         union ia32_mtrr_physmask_t mask;
         mask.val = __rdmsrl(IA32_MTRR_PHYSMASK0 + (mtrr_reg * 2));
 
-        if (!mask.fields.valid)
+        u64 bit = 0;
+        if (!mask.fields.valid || !first_set_bit(
+                &bit, mask.fields.physmask << 12)) {
             continue;
-
+        }
+        
         union ia32_mtrr_physbase_t base;
         base.val = __rdmsrl(IA32_MTRR_PHYSBASE0 + (mtrr_reg * 2));
-
-        u64 bit = 0;
-        if (!first_set_bit(&bit, mask.fields.physmask << 12))
-            continue;
 
         u64 base_addr = base.fields.physbase << 12;
         u64 end_addr = base_addr + ((1ULL << bit) - 1ULL);
