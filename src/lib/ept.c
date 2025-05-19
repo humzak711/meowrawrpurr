@@ -18,7 +18,9 @@ struct ept *map_ept(void)
         cap.val = __rdmsrl(IA32_MTRRCAP);
 
         if (cap.fields.vcnt > 0) {
-            ept->mtrr.mtrrs = kzalloc(cap.fields.vcnt * sizeof(struct mtrr_data), GFP_KERNEL);
+            ept->mtrr.mtrrs = 
+                kzalloc(cap.fields.vcnt * sizeof(struct mtrr_data), GFP_KERNEL);
+            
             if (!ept->mtrr.mtrrs)
                 goto mtrrs_failed;
 
