@@ -96,10 +96,15 @@ int hv_add_vcpu(struct hv *hv, struct vcpu_ctx *ctx)
 
 int hv_remove_vcpu(struct hv *hv, struct vcpu_ctx *ctx)
 {
-    if (!ctx || hv->vcpu_ctx_arr_count == 0)
+    if (!ctx)
         return -EINVAL;
 
     mutex_lock(&hv->vcpu_ctx_arr_lock);
+    
+    if (hv->vcpu_ctx_arr_count == 0) {
+        mutex_unlock(&hv->vcpu_ctx_arr_lock);
+        return -EINVAL;
+    }
 
     long index = -1;
     for (u32 i = 0; i < hv->vcpu_ctx_arr_count; i++) {
